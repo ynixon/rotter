@@ -1,0 +1,65 @@
+
+/* Dark Mode Styles */
+
+body {
+    background-color: #121212;  /* Dark background */
+    color: #FFFFFF;  /* White text */
+}
+
+/* Updated CSS to make the ticker scroll from left to right */
+
+.ticker-container {
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative;
+}
+
+.ticker-list {
+    display: inline-block;
+    padding-right: 100%;
+    /* Start off-screen */
+    /* animation: ticker-scroll 15s linear infinite;  */
+    /* direction: rtl;  /* Added for right-to-left text alignment */
+}
+
+@keyframes ticker-scroll {
+    from {
+        transform: translateX(-100%);
+        /* Start off-screen to the left */
+    }
+
+    to {
+        transform: translateX(100%);
+        /* Scroll to the right */
+    }
+}
+
+.ticker-list li {
+    display: inline;
+    padding: 0 10px;
+    /* Add spacing between titles */
+}
+
+.ticker-list li .date {
+    /* font-size: smaller; */
+    font-size: 24px;
+}
+
+.ticker-list li .title {
+    font-size: larger;
+}
+
+#ticker-container {
+    overflow: hidden;
+    white-space: nowrap;
+    width: 100%;
+}
+
+#ticker {
+    display: inline-block;
+    white-space: wrap;
+    width: 90%;
+    font-size: 50px;
+    text-align: right; 
+
+}
