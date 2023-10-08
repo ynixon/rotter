@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RSS Feed</title>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>RSS Feed Ticker</h1>
+    <div id="ticker-container">
+        <ul class="ticker-list" id="ticker"></ul>
+    </div>
+    <script src="{{ url_for('static', filename='ticker.js') }}"></script>
+</body>
+</html>
