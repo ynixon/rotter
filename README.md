@@ -45,7 +45,8 @@ docker build -t rotter-news .
 
 Run the Docker container in the background:
 ```
-docker run -d --restart always --name Rotter_News rotter-news
+docker run -d --restart always --name Rotter_News -p 3000:3000 rotter-news
+
 ```
 This will run the Rotter News application in a Docker container, and the container will always restart if it stops for any reason.
 
