@@ -63,3 +63,18 @@ body {
     text-align: right; 
 
 }
+#refreshFeed {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 20px;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    transition: background-color 0.2s;
+}
+
+#refreshFeed:hover {
+    background-color: #0056b3;
+}

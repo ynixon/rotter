@@ -47,4 +47,5 @@ $(document).ready(function () {
 
     // Initial RSS fetch and ticker start
     updateTicker();
+    $("#refreshFeed").on('click', updateTicker);
 });

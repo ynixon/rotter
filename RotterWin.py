@@ -3,6 +3,14 @@ import feedparser
 import html
 from datetime import datetime, timedelta
 
+
+def refresh_feed():
+    global current_item, news_items
+    current_item = 0
+    news_items = fetch_news()
+    show_next_headline()
+
+
 def format_time(date_str):
     try:
         parsed_date = datetime.strptime(date_str, "%a, %d %b %Y %H:%M:%S %z")
@@ -10,6 +18,7 @@ def format_time(date_str):
     except Exception as e:
         print(f"Error: {e}")
         return "Error parsing date"
+
 
 def fetch_news():
     feed = feedparser.parse('https://www.rotter.net/rss/rotternews.xml')
@@ -23,6 +32,7 @@ def fetch_news():
     entries = [f"{html.unescape(entry.title)} ({format_time(entry.published)})" for entry in feed.entries if datetime.strptime(entry.published, "%a, %d %b %Y %H:%M:%S %z") > one_hour_ago]
     
     return entries
+
 
 def show_next_headline():
     global current_item, news_items
@@ -43,6 +53,7 @@ def show_next_headline():
 
     root.after(5000, show_next_headline)  # Schedule next headline in 5 seconds
 
+
 root = tk.Tk()
 root.title("Always On Top News Banner")
 screen_width = root.winfo_screenwidth()
@@ -57,4 +68,8 @@ current_item = 0
 news_text = canvas.create_text(screen_width/2, 30, text=news_items[current_item] if news_items else "No recent news", fill="white", font=("Arial", 20), anchor="e")
 
 show_next_headline()  # Start showing headlines
+
+refresh_button = tk.Button(root, text="Refresh Feed", command=refresh_feed, bg="black", fg="white", font=("Arial", 12))
+canvas.create_window(screen_width - 50, 30, anchor="e", window=refresh_button)
+
 root.mainloop()
