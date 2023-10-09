@@ -11,4 +11,4 @@ COPY . /app
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Set the default command to run when the container starts
-CMD ["python", "Rotter.py"]
+CMD ["python", "RotterWeb.py"]
