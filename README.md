@@ -4,7 +4,7 @@
 # RSS Feed Ticker (Rotter News)
 
 ## Overview
-This project provides two interfaces to display Rotter News RSS feed titles: a web-based ticker using Flask, jQuery, and feedparser (`RotterWeb.py`), and a Windows desktop-based ticker (`RotterWin.py`).
+This project provides two interfaces to display Rotter News RSS feed titles: a web-based ticker using Flask, jQuery, and feedparser (`RotterWeb.py`), and a Windows desktop-based ticker (`RotterWin.pyw`).
 
 ## Features
 - Fetches RSS feed from a specified URL.
@@ -16,7 +16,7 @@ This project provides two interfaces to display Rotter News RSS feed titles: a w
 ### Python Packages
 - Flask (Web framework for `RotterWeb.py`)
 - feedparser (RSS feed parser for both versions)
-- tkinter (Standard GUI library for `RotterWin.py`)
+- tkinter (Standard GUI library for `RotterWin.pyw`)
 
 ## Setup and Run
 
@@ -63,11 +63,11 @@ This will run the Rotter News web application in a Docker container. The contain
 4. Run the Flask app: `python RotterWeb.py`
 5. Open a browser and go to `http://127.0.0.1:3000/`
 
-#### For `RotterWin.py` (Windows Desktop Interface):
+#### For `RotterWin.pyw` (Windows Desktop Interface):
 1. Clone the repo.
 2. Navigate to the project directory.
 3. Install dependencies: `pip install -r requirements.txt`
-4. Run the desktop app: `python RotterWin.py`
+4. Run the desktop app: `RotterWin.pyw`
 5. Observe the Rotter News ticker on the top of your desktop screen.
 
 ---
