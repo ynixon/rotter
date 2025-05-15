@@ -1,75 +1,158 @@
 import tkinter as tk
+from tkinter import font
 import feedparser
-import html
-from datetime import datetime, timedelta
+import threading
+import webbrowser
+from datetime import datetime
 
+# RSS feed URL for Rotter News
+FEED_URL = 'https://www.rotter.net/rss/rotternews.xml'
+REFRESH_INTERVAL = 60  # seconds
+TICKER_SPEED = 20  # pixels per second
 
-def refresh_feed():
-    global current_item, news_items
-    current_item = 0
-    news_items = fetch_news()
-    show_next_headline()
+class RotterTicker(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title('Rotter News Ticker')
+        screen_width = self.winfo_screenwidth()
+        self.geometry(f"{screen_width}x60+0+0")
+        self.overrideredirect(True)
+        self.attributes('-topmost', True)
+        self.configure(bg='#222')
+        self.protocol('WM_DELETE_WINDOW', self.on_close)
 
+        # Font setup
+        self.ticker_font = font.Font(family='Segoe UI', size=18, weight='bold')
+        self.ticker_fg = '#fff'
+        self.ticker_bg = '#222'
+        self.button_bg = '#444'
+        self.button_fg = '#fff'
+        self.button_active_bg = '#0F80FF'
 
-def format_time(date_str):
-    try:
-        parsed_date = datetime.strptime(date_str, "%a, %d %b %Y %H:%M:%S %z")
-        return parsed_date.strftime("%H:%M")
-    except Exception as e:
-        print(f"Error: {e}")
-        return "Error parsing date"
+        # Frame for buttons
+        self.button_frame = tk.Frame(self, bg=self.ticker_bg)
+        self.button_frame.pack(side=tk.RIGHT, padx=5)
+        # Close button
+        self.close_btn = tk.Button(self.button_frame, text="✕", bg=self.button_bg, fg=self.button_fg,
+                                  width=3, height=1, font=('Arial', 12, 'bold'),
+                                  activebackground=self.button_active_bg, relief=tk.FLAT, command=self.on_close)
+        self.close_btn.pack(side=tk.RIGHT, padx=3)
+        self.create_tooltip(self.close_btn, "Close Ticker")
+        # Refresh button
+        self.refresh_btn = tk.Button(self.button_frame, text="↻", bg=self.button_bg, fg=self.button_fg,
+                                    width=3, height=1, font=('Arial', 12, 'bold'),
+                                    activebackground=self.button_active_bg, relief=tk.FLAT, command=self.on_refresh)
+        self.refresh_btn.pack(side=tk.RIGHT, padx=3)
+        self.create_tooltip(self.refresh_btn, "Refresh News")
+        # Link button
+        self.link_btn = tk.Button(self.button_frame, text="🔗", bg=self.button_bg, fg=self.button_fg,
+                                 width=3, height=1, font=('Arial', 12, 'bold'),
+                                 activebackground=self.button_active_bg, relief=tk.FLAT, command=self.open_link)
+        self.link_btn.pack(side=tk.RIGHT, padx=3)
+        self.create_tooltip(self.link_btn, "Open Current News Link")
 
+        # Canvas for ticker
+        self.canvas = tk.Canvas(self, height=60, bg=self.ticker_bg, highlightthickness=0)
+        self.canvas.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
 
-def fetch_news():
-    feed = feedparser.parse('https://www.rotter.net/rss/rotternews.xml')
-    if feed.status != 200:
-        print("Failed to fetch the feed")
-        return []
+        # State
+        self.headlines = []
+        self.current_index = 0
+        self.next_index = 0
+        self.is_running = True
+        self.current_text_id = None
+        self.next_text_id = None
+        self.current_link = None
 
-    first_entry_datetime = datetime.strptime(feed.entries[0].published, "%a, %d %b %Y %H:%M:%S %z")
-    one_hour_ago = datetime.now(first_entry_datetime.tzinfo) - timedelta(hours=1)
+        # Start fetching and ticker
+        self.after(100, self.fetch_feed)
+        self.after(200, self.animate_ticker)
 
-    entries = [f"{html.unescape(entry.title)} ({format_time(entry.published)})" for entry in feed.entries if datetime.strptime(entry.published, "%a, %d %b %Y %H:%M:%S %z") > one_hour_ago]
-    
-    return entries
+    def create_tooltip(self, widget, text):
+        def enter(event):
+            x = widget.winfo_rootx() + 30
+            y = widget.winfo_rooty() + 30
+            self.tooltip = tk.Toplevel(widget)
+            self.tooltip.wm_overrideredirect(True)
+            self.tooltip.wm_geometry(f"+{x}+{y}")
+            label = tk.Label(self.tooltip, text=text, justify='left',
+                             background="#ffffe0", relief="solid", borderwidth=1,
+                             font=("Arial", 10, "normal"))
+            label.pack(ipadx=4, ipady=2)
+        def leave(event):
+            if hasattr(self, "tooltip"):
+                self.tooltip.destroy()
+        widget.bind("<Enter>", enter)
+        widget.bind("<Leave>", leave)
 
+    def fetch_feed(self):
+        def _fetch():
+            try:
+                feed = feedparser.parse(FEED_URL)
+                entries = []
+                for entry in feed.entries:
+                    title = entry.title
+                    date = entry.published if 'published' in entry else ''
+                    link = entry.link if 'link' in entry else None
+                    try:
+                        dt = datetime.strptime(date, "%a, %d %b %Y %H:%M:%S %z")
+                        time_str = dt.strftime('%H:%M')
+                    except Exception:
+                        time_str = ''
+                    timestamp = int(dt.timestamp()) if date else 0
+                    entries.append({'title': title, 'time': time_str, 'timestamp': timestamp, 'link': link})
+                entries.sort(key=lambda x: x['timestamp'], reverse=True)
+                self.headlines = entries[:10]
+            except Exception as e:
+                self.headlines = [{'title': f'שגיאה בטעינת חדשות: {e}', 'time': '', 'timestamp': 0, 'link': None}]
+            finally:
+                if self.is_running:
+                    self.after(REFRESH_INTERVAL * 1000, self.fetch_feed)
+        threading.Thread(target=_fetch, daemon=True).start()
 
-def show_next_headline():
-    global current_item, news_items
+    def on_refresh(self):
+        self.fetch_feed()
 
-    # Update to next headline
-    canvas.itemconfig(news_text, text=news_items[current_item])
-    
-    # Center and right-align the text
-    text_width = canvas.bbox(news_text)[2] - canvas.bbox(news_text)[0]
-    canvas.coords(news_text, (screen_width + text_width) / 2, 30)
+    def open_link(self):
+        if self.headlines and self.current_index < len(self.headlines):
+            headline = self.headlines[self.current_index]
+            link = headline.get('link')
+            if link:
+                webbrowser.open(link)
+            else:
+                webbrowser.open('https://www.rotter.net')
 
-    current_item += 1
+    def animate_ticker(self):
+        if not self.headlines:
+            self.after(500, self.animate_ticker)
+            return
+        # Prepare a single string with all headlines separated by ' | '
+        gap = ' | '
+        headlines_text = gap.join([
+            f"[{h['time']}] {h['title']}" for h in self.headlines
+        ])
+        self.canvas.delete('all')
+        screen_width = self.winfo_width() - self.button_frame.winfo_width() - 10
+        text_id = self.canvas.create_text(-10, 30, anchor='w', text=headlines_text, font=self.ticker_font, fill=self.ticker_fg)
+        text_bbox = self.canvas.bbox(text_id)
+        text_width = text_bbox[2] - text_bbox[0] if text_bbox else 400
+        x = -text_width
+        def move():
+            nonlocal x
+            if not self.is_running:
+                return
+            x += 4  # Move right, slower than before
+            self.canvas.coords(text_id, x, 30)
+            if x < screen_width:
+                self.after(int(1000 / TICKER_SPEED), move)
+            else:
+                self.after(50, self.animate_ticker)
+        move()
 
-    # If reached end, fetch news again and reset current item
-    if current_item >= len(news_items):
-        news_items = fetch_news()
-        current_item = 0
+    def on_close(self):
+        self.is_running = False
+        self.destroy()
 
-    root.after(5000, show_next_headline)  # Schedule next headline in 5 seconds
-
-
-root = tk.Tk()
-root.title("Always On Top News Banner")
-screen_width = root.winfo_screenwidth()
-root.geometry(f"{screen_width}x60+0+0")
-root.attributes("-topmost", True)
-
-canvas = tk.Canvas(root, bg="black", height=60, width=screen_width)
-canvas.pack(fill=tk.BOTH, expand=1)
-
-news_items = fetch_news()
-current_item = 0
-news_text = canvas.create_text(screen_width/2, 30, text=news_items[current_item] if news_items else "No recent news", fill="white", font=("Arial", 20), anchor="e")
-
-show_next_headline()  # Start showing headlines
-
-refresh_button = tk.Button(root, text="Refresh Feed", command=refresh_feed, bg="black", fg="white", font=("Arial", 12))
-canvas.create_window(screen_width - 50, 30, anchor="e", window=refresh_button)
-
-root.mainloop()
+if __name__ == '__main__': 
+    app = RotterTicker()
+    app.mainloop()

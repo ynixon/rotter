@@ -1,0 +1,37 @@
+/* Offline mode styling */
+body.offline-mode {
+    position: relative;
+}
+
+body.offline-mode::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background-color: #F44336;
+    z-index: 1000;
+    animation: blink 2s infinite;
+}
+
+body.offline-mode #refreshFeed {
+    background-color: #F44336;
+    opacity: 0.7;
+}
+
+body.offline-mode .news-item {
+    opacity: 0.85;
+}
+
+body.offline-mode #header-ticker::after {
+    content: ' (מצב לא מקוון)';
+    color: #F44336;
+    font-weight: bold;
+}
+
+@keyframes blink {
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
+}

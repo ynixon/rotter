@@ -1,0 +1,28 @@
+{
+    "github.copilot.enable": true,
+    "vscode-openai.conversation-configuration.api-headers": [
+      
+    ],
+    "vscode-openai.serviceProvider": "OpenAI",
+    "vscode-openai.baseUrl": "https://api.openai.com/v1",
+    "vscode-openai.defaultModel": "gpt-3.5-turbo-instruct-0914",
+    "vscode-openai.azureDeployment": "setup-required",
+    "vscode-openai.scmModel": "gpt-3.5-turbo-instruct-0914",
+    "vscode-openai.scmDeployment": "setup-required",
+    "vscode-openai.embeddingModel": "text-embedding-ada-002",
+    "vscode-openai.embeddingsDeployment": "setup-required",
+    "vscode-openai.azureApiVersion": "2023-05-15",
+    "vscode-openai.conversation-configuration.colors": {
+        
+        "lightUserColor": "#424242",
+        "lightUserBackground": "#f0f0f0",
+        "lightAssistantColor": "#107c10",
+        "lightAssistantBackground": "#f1faf1",
+        "darkUserColor": "#d6d6d6",
+        "darkUserBackground": "#0a0a0a",
+        "darkAssistantColor": "#9fd89f",
+        "darkAssistantBackground": "#052505"
+    },
+    "codeQL.telemetry.enableTelemetry": true,
+    "github.copilot.editor.enableCodeActions": false
+}

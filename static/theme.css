@@ -1,0 +1,89 @@
+/* Theme styling for Rotter News */
+
+/* Dark theme (default) */
+:root {
+    --background-color: #121212;
+    --text-color: #FFFFFF;
+    --accent-color: #0F80FF;
+    --card-background: #1E1E1E;
+    --card-hover: #2A2A2A;
+    --header-background: #1A1A1A;
+    --border-radius: 10px;
+    --spacing: 1rem;
+}
+
+/* Light theme */
+[data-theme="light"] {
+    --background-color: #F5F5F5;
+    --text-color: #121212;
+    --accent-color: #0065D1;
+    --card-background: #FFFFFF;
+    --card-hover: #F0F0F0;
+    --header-background: #ECECEC;
+}
+
+/* Theme toggle button styling */
+#theme-toggle {
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    background-color: var(--card-background);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--accent-color);
+    font-size: 1.2rem;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+#theme-toggle:hover {
+    transform: scale(1.1);
+}
+
+/* Small refresh button in top left corner */
+#mini-refresh {
+    position: fixed;
+    top: 65px;
+    left: 15px;
+    background-color: var(--card-background);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--accent-color);
+    font-size: 1.2rem;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+#mini-refresh:hover {
+    transform: scale(1.1);
+}
+
+/* Animation for button press */
+.button-pressed {
+    animation: button-press 0.3s ease;
+}
+
+@keyframes button-press {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.9); }
+    100% { transform: scale(1); }
+}
+
+/* Transition effects for theme change */
+body, header, .ticker-wrapper, .footer {
+    transition: background-color 0.3s ease, color 0.3s ease;
+}

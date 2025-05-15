@@ -1,0 +1,90 @@
+/* New indicator for ticker items */
+.new-indicator {
+    display: inline-block;
+    margin-right: 10px;
+    color: #FF3D00;
+    animation: pulse 1.5s infinite;
+    font-size: 1.2rem;
+    vertical-align: middle;
+}
+
+/* Updated ticker time display to accommodate the new indicator */
+.ticker-time {
+    font-size: 1.6rem;
+    color: var(--accent-color);
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Make sure the ticker wrapper has enough height for 2 lines of content plus the link */
+.ticker-wrapper {
+    height: 14rem; /* Increased from 11rem to ensure two lines of content and the link are visible */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Make sure the ticker can fit 2 lines of headline text */
+.ticker-title {
+    font-size: 2.2rem;
+    line-height: 1.3;
+    font-weight: 600;
+    max-height: 6rem; /* Slightly increased from 5.8rem */
+    overflow: hidden;
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    margin: 0 auto;
+}
+
+/* Styling for loading message */
+.loading-message {
+    font-size: 2.5rem;
+    color: var(--accent-color);
+    text-align: center;
+    animation: pulse 1.5s infinite;
+}
+
+/* Styling for the ticker link to original source */
+.ticker-link {
+    margin-top: 0.8rem;
+    text-align: center;
+    font-size: 1.2rem;
+}
+
+.ticker-link a {
+    color: var(--accent-color);
+    text-decoration: none;
+    font-size: 1.2rem;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    background-color: rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ticker-link a:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.ticker-link i {
+    font-size: 0.9rem;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+    100% {
+        opacity: 1;
+    }
+}

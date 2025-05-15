@@ -4,13 +4,17 @@
 # RSS Feed Ticker (Rotter News)
 
 ## Overview
-This project provides two interfaces to display Rotter News RSS feed titles: a web-based ticker using Flask, jQuery, and feedparser (`RotterWeb.py`), and a Windows desktop-based ticker (`RotterWin.pyw`).
+This project provides a modern web-based interface to display Rotter News RSS feed titles using Flask, jQuery, and feedparser (`RotterWeb.py`). The application features a responsive design with light/dark theme support and offline capabilities.
 
 ## Features
-- Fetches RSS feed from a specified URL.
-- Displays titles in a scrolling ticker format on the web interface.
-- For Windows users, displays titles sequentially with a pause in between on the desktop interface.
-- Refreshes the feed and starts from the beginning after all titles are shown.
+- Modern, responsive web interface with light/dark theme support
+- Fetches RSS feed from Rotter.net
+- Displays news headlines with timestamps in an animated ticker format
+- Automatically highlights new headlines
+- Offline mode with local storage for continued viewing when disconnected
+- Connection status monitoring with automatic reconnection
+- Mobile-friendly design with optimized layout for different screen sizes
+- Background auto-refresh for latest news updates
 
 ## Dependencies
 ### Python Packages
