@@ -10,5 +10,8 @@ COPY . /app
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Expose the port used by the app
+EXPOSE 10000
+
 # Set the default command to run when the container starts
 CMD ["python", "RotterWeb.py"]

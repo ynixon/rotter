@@ -2,6 +2,7 @@ from flask import Flask, render_template, jsonify
 import feedparser
 import html
 import re
+import os
 from datetime import datetime, timedelta
 
 # Function to format date
@@ -94,4 +95,5 @@ def get_feed():
         return jsonify({'error': str(e)})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=3000, debug=True)
+    port = int(os.environ.get("PORT", 3000))
+    app.run(host="0.0.0.0", port=port, debug=False)
