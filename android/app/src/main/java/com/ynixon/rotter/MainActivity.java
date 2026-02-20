@@ -6,6 +6,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -25,10 +27,13 @@ public class MainActivity extends AppCompatActivity {
     private static final long DISPLAY_MS = 5000;
     private static final long FADE_MS = 600;
     private static final long REFRESH_INTERVAL_MIN = 3;
+    private static final int SWIPE_VELOCITY_THRESHOLD = 300;
+    private static final int SWIPE_DISTANCE_THRESHOLD = 100;
 
     private TextView tvTime;
     private TextView tvTitle;
     private TextView tvNewBadge;
+    private TextView tvCounter;
     private Button btnLink;
     private Button btnRefresh;
     private ImageButton btnMiniRefresh;
@@ -61,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
         tvTime        = findViewById(R.id.tv_time);
         tvTitle       = findViewById(R.id.tv_title);
         tvNewBadge    = findViewById(R.id.tv_new_badge);
+        tvCounter     = findViewById(R.id.tv_counter);
         btnLink       = findViewById(R.id.btn_link);
         btnRefresh    = findViewById(R.id.btn_refresh);
         btnMiniRefresh= findViewById(R.id.btn_mini_refresh);
@@ -92,6 +98,34 @@ public class MainActivity extends AppCompatActivity {
                     startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
                 }
             }
+        });
+
+        // Swipe gesture: left → next, right → previous
+        GestureDetector gestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                if (entries.isEmpty()) return false;
+                float distanceX = e2.getX() - e1.getX();
+                if (Math.abs(distanceX) > SWIPE_DISTANCE_THRESHOLD
+                        && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
+                    cancelTick();
+                    if (velocityX < 0) {
+                        // swipe left → next
+                        tickerIndex = (tickerIndex + 1) % entries.size();
+                    } else {
+                        // swipe right → previous
+                        tickerIndex = (tickerIndex - 1 + entries.size()) % entries.size();
+                    }
+                    showEntry();
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        tickerCard.setOnTouchListener((v, event) -> {
+            gestureDetector.onTouchEvent(event);
+            return true;
         });
 
         fetchFeed(false);
@@ -163,6 +197,7 @@ public class MainActivity extends AppCompatActivity {
         tickerCard.animate().alpha(0f).setDuration(FADE_MS).withEndAction(() -> {
             tvTime.setText(e.getDate());
             tvTitle.setText(e.getTitle());
+            tvCounter.setText((tickerIndex + 1) + " / " + entries.size());
 
             if (e.getLink() != null && !e.getLink().isEmpty()) {
                 btnLink.setVisibility(View.VISIBLE);
