@@ -25,10 +25,16 @@ import java.util.concurrent.TimeUnit;
 public class MainActivity extends AppCompatActivity {
 
     private static final long DISPLAY_MS = 5000;
-    private static final long FADE_MS = 600;
+    private static final long FADE_MS    = 500;
+    private static final long SLIDE_MS   = 280;
     private static final long REFRESH_INTERVAL_MIN = 3;
-    private static final int SWIPE_VELOCITY_THRESHOLD = 300;
-    private static final int SWIPE_DISTANCE_THRESHOLD = 100;
+    private static final int  SWIPE_VELOCITY_THRESHOLD = 300;
+    private static final int  SWIPE_DISTANCE_THRESHOLD = 80;
+
+    // direction constants
+    private static final int DIR_INITIAL = 0;
+    private static final int DIR_NEXT    = 1;   // slide left
+    private static final int DIR_PREV    = -1;  // slide right
 
     private TextView tvTime;
     private TextView tvTitle;
@@ -110,13 +116,12 @@ public class MainActivity extends AppCompatActivity {
                         && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
                     cancelTick();
                     if (velocityX < 0) {
-                        // swipe left → next
                         tickerIndex = (tickerIndex + 1) % entries.size();
+                        showEntry(DIR_NEXT);
                     } else {
-                        // swipe right → previous
                         tickerIndex = (tickerIndex - 1 + entries.size()) % entries.size();
+                        showEntry(DIR_PREV);
                     }
-                    showEntry();
                     return true;
                 }
                 return false;
@@ -162,7 +167,6 @@ public class MainActivity extends AppCompatActivity {
             if (e.getTimestamp() > maxTs) maxTs = e.getTimestamp();
         }
 
-        // new items first, then by descending timestamp
         loaded.sort((a, b) -> {
             if (a.isNew() != b.isNew()) return a.isNew() ? -1 : 1;
             return Long.compare(b.getTimestamp(), a.getTimestamp());
@@ -186,40 +190,65 @@ public class MainActivity extends AppCompatActivity {
         }
 
         cancelTick();
-        showEntry();
+        showEntry(DIR_INITIAL);
     }
 
-    private void showEntry() {
+    /**
+     * @param direction DIR_NEXT (slide left), DIR_PREV (slide right), DIR_INITIAL (fade in)
+     */
+    private void showEntry(int direction) {
         if (entries.isEmpty()) return;
         NewsEntry e = entries.get(tickerIndex);
+        float screenWidth = getResources().getDisplayMetrics().widthPixels;
 
-        // fade out → update content → fade in → schedule next
-        tickerCard.animate().alpha(0f).setDuration(FADE_MS).withEndAction(() -> {
-            tvTime.setText(e.getDate());
-            tvTitle.setText(e.getTitle());
-            tvCounter.setText((tickerIndex + 1) + " / " + entries.size());
+        if (direction == DIR_INITIAL) {
+            // First load: simple fade in
+            tickerCard.setAlpha(0f);
+            applyContent(e);
+            tickerCard.animate().alpha(1f).setDuration(FADE_MS)
+                .withEndAction(this::scheduleNextTick).start();
+            return;
+        }
 
-            if (e.getLink() != null && !e.getLink().isEmpty()) {
-                btnLink.setVisibility(View.VISIBLE);
-            } else {
-                btnLink.setVisibility(View.GONE);
-            }
+        // Slide out current card, then slide in new card from opposite side
+        float slideOutX = direction == DIR_NEXT ? -screenWidth : screenWidth;
+        float slideInX  = direction == DIR_NEXT ?  screenWidth : -screenWidth;
 
-            if (e.isNew()) {
-                tvNewBadge.setVisibility(View.VISIBLE);
-                e.setIsNew(false);
-            } else {
-                tvNewBadge.setVisibility(View.GONE);
-            }
+        tickerCard.animate()
+            .translationX(slideOutX)
+            .setDuration(SLIDE_MS)
+            .withEndAction(() -> {
+                applyContent(e);
+                tickerCard.setTranslationX(slideInX);
+                tickerCard.animate()
+                    .translationX(0f)
+                    .setDuration(SLIDE_MS)
+                    .withEndAction(this::scheduleNextTick)
+                    .start();
+            })
+            .start();
+    }
 
-            tickerCard.animate().alpha(1f).setDuration(FADE_MS).start();
+    private void applyContent(NewsEntry e) {
+        tvTime.setText(e.getDate());
+        tvTitle.setText(e.getTitle());
+        tvCounter.setText((tickerIndex + 1) + " / " + entries.size());
+        btnLink.setVisibility(
+            (e.getLink() != null && !e.getLink().isEmpty()) ? View.VISIBLE : View.GONE);
+        if (e.isNew()) {
+            tvNewBadge.setVisibility(View.VISIBLE);
+            e.setIsNew(false);
+        } else {
+            tvNewBadge.setVisibility(View.GONE);
+        }
+    }
 
-            nextTick = () -> {
-                tickerIndex = (tickerIndex + 1) % entries.size();
-                showEntry();
-            };
-            handler.postDelayed(nextTick, DISPLAY_MS);
-        }).start();
+    private void scheduleNextTick() {
+        nextTick = () -> {
+            tickerIndex = (tickerIndex + 1) % entries.size();
+            showEntry(DIR_NEXT);
+        };
+        handler.postDelayed(nextTick, DISPLAY_MS);
     }
 
     private void cancelTick() {
