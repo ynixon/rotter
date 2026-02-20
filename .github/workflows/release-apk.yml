@@ -1,20 +1,14 @@
-name: Build Android APK
+name: Release Android APK
 
 on:
   push:
-    branches-ignore: [main, master]
-    paths:
-      - 'android/**'
-      - '.github/workflows/build-apk.yml'
-  pull_request:
     branches: [main, master]
     paths:
       - 'android/**'
-      - '.github/workflows/build-apk.yml'
-  workflow_dispatch:
+      - '.github/workflows/release-apk.yml'
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,14 +21,11 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # Provisions Gradle 8.2 and adds 'gradle' to PATH — no wrapper jar needed
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.2'
 
-      # ubuntu-latest has Android SDK pre-installed; accept licenses and
-      # ensure the exact platform + build-tools our project requires are present
       - name: Install required Android SDK packages
         run: |
           yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
@@ -55,9 +46,18 @@ jobs:
         working-directory: android
         run: gradle assembleDebug --no-daemon
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: rotter-news-debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk
-          retention-days: 30
+          tag_name: apk-${{ github.run_number }}
+          name: "Rotter News APK (build #${{ github.run_number }})"
+          body: |
+            Android APK built automatically from commit ${{ github.sha }}.
+
+            **Install:** Download `app-debug.apk` below and sideload it on your Android device.
+            (Enable "Install from unknown sources" in Android settings first.)
+          files: android/app/build/outputs/apk/debug/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
