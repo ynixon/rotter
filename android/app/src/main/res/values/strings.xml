@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Rotter News</string>
+    <string name="refresh">רענון</string>
+    <string name="toggle_theme">החלף ערכת נושא</string>
+    <string name="loading">טוען חדשות…</string>
+    <string name="error_loading">שגיאה בטעינת החדשות. נסה שוב.</string>
+    <string name="new_headlines">כותרות חדשות</string>
+    <string name="view_source">צפה במקור ↗</string>
+    <string name="footer">© 2025 Rotter News • rotter.net</string>
 </resources>

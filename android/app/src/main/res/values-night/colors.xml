@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark theme (matches the web app default) -->
+    <color name="primary">#0F80FF</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="surface">#121212</color>
+    <color name="on_surface">#E0E0E0</color>
+    <color name="new_badge">#FF3D00</color>
+</resources>
