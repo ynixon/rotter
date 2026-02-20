@@ -74,4 +74,18 @@ This will run the Rotter News web application in a Docker container. The contain
 4. Run the desktop app: `RotterWin.pyw`
 5. Observe the Rotter News ticker on the top of your desktop screen.
 
+#### For the Android App (`android/app/src/main/java/com/ynixon/rotter/MainActivity.java`):
+The Android app is a standalone native application that fetches and displays Rotter News headlines in a scrolling ticker.
+
+**Build via GitHub Actions (recommended):**
+1. Push changes to `android/**` or trigger manually via `workflow_dispatch`.
+2. Download the `rotter-news-debug-apk` artifact from the Actions run.
+3. Sideload the APK on your Android device (enable *Install from unknown sources* in Settings first).
+
+**Build locally:**
+1. Install [Android Studio](https://developer.android.com/studio) with SDK Platform 34 and Build-Tools 34.0.0.
+2. Navigate to the `android/` directory.
+3. Run `./gradlew assembleDebug`.
+4. Install the APK: `adb install app/build/outputs/apk/debug/app-debug.apk`.
+
 ---
