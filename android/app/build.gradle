@@ -10,8 +10,8 @@ android {
         applicationId "com.ynixon.rotter"
         minSdk 21
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode  project.hasProperty('apkVersionCode') ? project.apkVersionCode.toInteger() : 1
+        versionName  project.hasProperty('apkVersionName') ? project.apkVersionName : "1.0"
     }
 
     buildTypes {

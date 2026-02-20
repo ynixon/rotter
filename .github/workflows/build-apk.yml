@@ -53,7 +53,7 @@ jobs:
 
       - name: Build debug APK
         working-directory: android
-        run: gradle assembleDebug --no-daemon
+        run: gradle assembleDebug --no-daemon -PapkVersionCode=${{ github.run_number }} -PapkVersionName="1.0.${{ github.run_number }}"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
