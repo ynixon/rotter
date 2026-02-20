@@ -55,7 +55,7 @@ public class RssFetcher {
 
         XmlPullParser xpp = Xml.newPullParser();
         xpp.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false);
-        xpp.setInput(is, "UTF-8");
+        xpp.setInput(is, null); // honour the feed's own encoding declaration (windows-1255)
 
         String title = null, pubDate = null, link = null;
         boolean inItem = false;
