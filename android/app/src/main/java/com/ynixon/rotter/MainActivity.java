@@ -71,6 +71,9 @@ public class MainActivity extends AppCompatActivity {
         tvNewBadge.setVisibility(View.GONE);
         btnLink.setVisibility(View.GONE);
 
+        TextView tvFooter = findViewById(R.id.footer);
+        tvFooter.setText(getString(R.string.footer) + " • v" + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")");
+
         btnRefresh.setOnClickListener(v -> triggerRefresh());
         btnMiniRefresh.setOnClickListener(v -> triggerRefresh());
 
