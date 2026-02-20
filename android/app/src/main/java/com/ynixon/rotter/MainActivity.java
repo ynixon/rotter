@@ -109,6 +109,22 @@ public class MainActivity extends AppCompatActivity {
         // Swipe gesture: left → next, right → previous
         GestureDetector gestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
             @Override
+            public boolean onSingleTapUp(MotionEvent e) {
+                if (entries.isEmpty()) return false;
+                cancelTick();
+                if (e.getX() < tickerCard.getWidth() / 2f) {
+                    // tap left half → previous
+                    tickerIndex = (tickerIndex - 1 + entries.size()) % entries.size();
+                    showEntry(DIR_PREV);
+                } else {
+                    // tap right half → next
+                    tickerIndex = (tickerIndex + 1) % entries.size();
+                    showEntry(DIR_NEXT);
+                }
+                return true;
+            }
+
+            @Override
             public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
                 if (entries.isEmpty()) return false;
                 float distanceX = e2.getX() - e1.getX();
