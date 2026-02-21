@@ -9,5 +9,6 @@
     <string name="new_headlines">כותרות חדשות</string>
     <string name="view_source">צפה במקור ↗</string>
     <string name="expand_content">הרחב תוכן</string>
+    <string name="range_label">טווח:</string>
     <string name="footer">© 2026 Rotter News • rotter.net</string>
 </resources>

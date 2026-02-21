@@ -9,8 +9,11 @@ import android.os.Looper;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -50,6 +53,9 @@ public class MainActivity extends AppCompatActivity {
     private View tickerCard;
     private boolean isExpanded = false;
 
+    private static final int[] HOURS_OPTIONS = {1, 2, 4, 8, 16};
+    private int hoursBack = 4; // default lookback window
+
     private final Handler handler = new Handler(Looper.getMainLooper());
     private Runnable nextTick;
     private ScheduledExecutorService refreshScheduler;
@@ -65,6 +71,7 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences prefs = getPreferences(MODE_PRIVATE);
         isNightMode = prefs.getBoolean("night_mode", true);
         lastSeenTimestamp = prefs.getLong("last_seen_ts", 0);
+        hoursBack = prefs.getInt("hours_back", 4);
 
         AppCompatDelegate.setDefaultNightMode(
             isNightMode ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO
@@ -88,6 +95,30 @@ public class MainActivity extends AppCompatActivity {
         tvTitle.setText(R.string.loading);
         tvNewBadge.setVisibility(View.GONE);
         btnLink.setVisibility(View.GONE);
+
+        // ── Hours range spinner ────────────────────────────────────────
+        Spinner spinnerHours = findViewById(R.id.spinner_hours);
+        ArrayAdapter<String> hoursAdapter = new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_spinner_item,
+                getResources().getStringArray(R.array.hours_labels));
+        hoursAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerHours.setAdapter(hoursAdapter);
+        spinnerHours.setSelection(indexOfHours(hoursBack), false);
+        spinnerHours.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            private boolean ready = false; // skip the initial programmatic selection
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (!ready) { ready = true; return; }
+                int selected = HOURS_OPTIONS[position];
+                if (selected != hoursBack) {
+                    hoursBack = selected;
+                    getPreferences(MODE_PRIVATE).edit().putInt("hours_back", hoursBack).apply();
+                    fetchFeed(true);
+                }
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
+        });
 
         TextView tvFooter = findViewById(R.id.footer);
         tvFooter.setText(getString(R.string.footer) + " • v" + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")");
@@ -195,7 +226,7 @@ public class MainActivity extends AppCompatActivity {
         if (showSpinner) tvTitle.setText(R.string.loading);
 
         Executors.newSingleThreadExecutor().execute(() -> {
-            List<NewsEntry> result = RssFetcher.fetch();
+            List<NewsEntry> result = RssFetcher.fetch(hoursBack);
             handler.post(() -> {
                 isRefreshing = false;
                 if (result != null && !result.isEmpty()) {
@@ -328,11 +359,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void scheduleNextTick() {
+        long delay = isExpanded ? DISPLAY_MS * 2 : DISPLAY_MS;
         nextTick = () -> {
             tickerIndex = (tickerIndex + 1) % entries.size();
             showEntry(DIR_AUTO);
         };
-        handler.postDelayed(nextTick, DISPLAY_MS);
+        handler.postDelayed(nextTick, delay);
     }
 
     private void cancelTick() {
@@ -348,6 +380,13 @@ public class MainActivity extends AppCompatActivity {
             () -> handler.post(() -> fetchFeed(false)),
             REFRESH_INTERVAL_MIN, REFRESH_INTERVAL_MIN, TimeUnit.MINUTES
         );
+    }
+
+    private static int indexOfHours(int hours) {
+        for (int i = 0; i < HOURS_OPTIONS.length; i++) {
+            if (HOURS_OPTIONS[i] == hours) return i;
+        }
+        return 2; // default: 4 hours (index 2)
     }
 
     @Override
