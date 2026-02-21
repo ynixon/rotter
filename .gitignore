@@ -1,0 +1,14 @@
+# Gradle build cache and generated files
+.gradle/
+android/.gradle/
+build/
+android/app/build/
+
+# Android local config (machine-specific)
+local.properties
+android/local.properties
+
+# IDE files
+.idea/
+*.iml
+.DS_Store
