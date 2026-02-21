@@ -6,6 +6,7 @@ import os
 import requests as _requests
 import urllib.parse as _urlparse
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed as _as_completed
 
 _ARTICLE_HEADERS = {
     'User-Agent': (
@@ -168,6 +169,19 @@ def _resolve_rotter_url(url):
     return url
 
 
+def _task_jina(url):
+    resp = _requests.get('https://r.jina.ai/' + url,
+                         headers={'Accept': 'text/plain', 'X-No-Cache': 'true'}, timeout=20)
+    resp.raise_for_status()
+    return _extract_from_jina(resp.text)
+
+
+def _task_proxy(proxy_url):
+    resp = _requests.get(proxy_url, timeout=15)
+    resp.raise_for_status()
+    return _extract_article_body(_decode_response(resp.content))
+
+
 @app.route('/getArticle')
 def get_article():
     url = request.args.get('url', '').strip()
@@ -177,40 +191,27 @@ def get_article():
     # Rotter RSS links use show_item.asp?id=XXXXX which only resolves inside a
     # real browser (Cloudflare JS redirect). Convert to the real .shtml URL.
     url = _resolve_rotter_url(url)
+    enc = _urlparse.quote(url, safe='')
 
-    # Strategy 1: Jina Reader API — reliably renders the page and returns
-    # markdown. allorigins consistently times out from Render's server.
-    try:
-        resp = _requests.get(
-            'https://r.jina.ai/' + url,
-            headers={'Accept': 'text/plain', 'X-No-Cache': 'true'},
-            timeout=20,
-        )
-        resp.raise_for_status()
-        body = _extract_from_jina(resp.text)
-        if body:
-            return jsonify({'body': body})
-    except Exception:
-        pass
+    # Fire all fetch strategies in parallel — return the first successful result.
+    # Sequential retries were taking 35+ seconds; parallel brings it to ~15s max.
+    fns = [
+        lambda: _task_jina(url),
+        lambda: _task_proxy('https://corsproxy.io/?url=' + enc),
+        lambda: _task_proxy('https://api.allorigins.win/raw?url=' + enc),
+    ]
+    executor = ThreadPoolExecutor(max_workers=len(fns))
+    futures = [executor.submit(fn) for fn in fns]
+    executor.shutdown(wait=False)  # don't block after we return
 
-    # Strategy 2: allorigins CORS proxy (fallback when Jina is slow)
     try:
-        proxy_url = 'https://api.allorigins.win/raw?url=' + _urlparse.quote(url, safe='')
-        resp = _requests.get(proxy_url, timeout=15)
-        resp.raise_for_status()
-        body = _extract_article_body(_decode_response(resp.content))
-        if body:
-            return jsonify({'body': body})
-    except Exception:
-        pass
-
-    # Strategy 3: direct fetch (blocked by Cloudflare on most articles)
-    try:
-        resp = _requests.get(url, headers=_ARTICLE_HEADERS, timeout=8, allow_redirects=True)
-        resp.raise_for_status()
-        body = _extract_article_body(_decode_response(resp.content))
-        if body:
-            return jsonify({'body': body})
+        for future in _as_completed(futures, timeout=22):
+            try:
+                result = future.result()
+                if result:
+                    return jsonify({'body': result})
+            except Exception:
+                pass
     except Exception:
         pass
 
