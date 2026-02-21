@@ -35,6 +35,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int DIR_INITIAL = 0;
     private static final int DIR_NEXT    = 1;   // slide left
     private static final int DIR_PREV    = -1;  // slide right
+    private static final int DIR_AUTO    = 2;   // fade (auto-advance, no touch)
 
     private TextView tvTime;
     private TextView tvTitle;
@@ -44,7 +45,9 @@ public class MainActivity extends AppCompatActivity {
     private Button btnRefresh;
     private ImageButton btnMiniRefresh;
     private ImageButton btnTheme;
+    private ImageButton btnExpand;
     private View tickerCard;
+    private boolean isExpanded = false;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private Runnable nextTick;
@@ -77,6 +80,7 @@ public class MainActivity extends AppCompatActivity {
         btnRefresh    = findViewById(R.id.btn_refresh);
         btnMiniRefresh= findViewById(R.id.btn_mini_refresh);
         btnTheme      = findViewById(R.id.btn_theme);
+        btnExpand     = findViewById(R.id.btn_expand);
         tickerCard    = findViewById(R.id.ticker_card);
 
         tvTitle.setText(R.string.loading);
@@ -103,6 +107,18 @@ public class MainActivity extends AppCompatActivity {
                 if (url != null && !url.isEmpty()) {
                     startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
                 }
+            }
+        });
+
+        btnExpand.setOnClickListener(v -> {
+            isExpanded = !isExpanded;
+            btnExpand.animate().rotation(isExpanded ? 180f : 0f).setDuration(200).start();
+            if (isExpanded && tickerIndex < entries.size()) {
+                String url = entries.get(tickerIndex).getLink();
+                btnLink.setVisibility(
+                    (url != null && !url.isEmpty()) ? View.VISIBLE : View.GONE);
+            } else {
+                btnLink.setVisibility(View.GONE);
             }
         });
 
@@ -226,6 +242,17 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        if (direction == DIR_AUTO) {
+            // Auto-advance (timer): fade out then fade in
+            tickerCard.animate().alpha(0f).setDuration(FADE_MS)
+                .withEndAction(() -> {
+                    applyContent(e);
+                    tickerCard.animate().alpha(1f).setDuration(FADE_MS)
+                        .withEndAction(this::scheduleNextTick).start();
+                }).start();
+            return;
+        }
+
         // Slide out current card, then slide in new card from opposite side
         float slideOutX = direction == DIR_NEXT ? -screenWidth : screenWidth;
         float slideInX  = direction == DIR_NEXT ?  screenWidth : -screenWidth;
@@ -249,8 +276,10 @@ public class MainActivity extends AppCompatActivity {
         tvTime.setText(e.getDate());
         tvTitle.setText(e.getTitle());
         tvCounter.setText((tickerIndex + 1) + " / " + entries.size());
-        btnLink.setVisibility(
-            (e.getLink() != null && !e.getLink().isEmpty()) ? View.VISIBLE : View.GONE);
+        // Collapse on every new message; user must tap expand to see link
+        isExpanded = false;
+        btnExpand.setRotation(0f);
+        btnLink.setVisibility(View.GONE);
         if (e.isNew()) {
             tvNewBadge.setVisibility(View.VISIBLE);
             e.setIsNew(false);
@@ -262,7 +291,7 @@ public class MainActivity extends AppCompatActivity {
     private void scheduleNextTick() {
         nextTick = () -> {
             tickerIndex = (tickerIndex + 1) % entries.size();
-            showEntry(DIR_NEXT);
+            showEntry(DIR_AUTO);
         };
         handler.postDelayed(nextTick, DISPLAY_MS);
     }

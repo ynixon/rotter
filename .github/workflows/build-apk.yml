@@ -42,15 +42,6 @@ jobs:
             "platforms;android-34" \
             "build-tools;34.0.0"
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: ${{ runner.os }}-gradle-
-
       - name: Build debug APK
         working-directory: android
         run: gradle assembleDebug --no-daemon -PapkVersionCode=${{ github.run_number }} -PapkVersionName="1.0.${{ github.run_number }}"
