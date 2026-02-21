@@ -26,9 +26,19 @@ android {
     buildTypes {
         release {
             minifyEnabled false
+            // Sign release with the persistent debug keystore so APK updates
+            // install over each other without requiring a production keystore.
+            signingConfig signingConfigs.debug
         }
         debug {
             signingConfig signingConfigs.debug
+        }
+    }
+
+    // Custom output filename: rotter-news-<versionName>.apk (no "debug"/"release" suffix)
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "rotter-news-${variant.versionName}.apk"
         }
     }
 

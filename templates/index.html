@@ -37,10 +37,29 @@
     <header>
         <div class="header-content">
             <h1>Rotter News</h1>
-            <div class="ticker-wrapper">
+            <!-- Hours-back range selector -->
+            <div id="range-bar">
+                <label for="hours-select">טווח:</label>
+                <select id="hours-select" aria-label="טווח שעות">
+                    <option value="1">שעה אחת</option>
+                    <option value="2">2 שעות</option>
+                    <option value="4" selected>4 שעות</option>
+                    <option value="8">8 שעות</option>
+                    <option value="16">16 שעות</option>
+                </select>
+            </div>
+            <div class="ticker-wrapper" id="ticker-wrapper">
                 <div id="header-ticker">
                     <!-- Headlines will roll here -->
                 </div>
+                <!-- Message counter -->
+                <div id="ticker-counter"></div>
+                <!-- Expand chevron -->
+                <button id="btn-expand" aria-label="הרחב">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <!-- Article body (shown when expanded) -->
+                <div id="ticker-body" class="hidden"></div>
                 <div id="connection-status" class="hidden">מנותק מהשרת</div>
             </div>
         </div>
@@ -50,7 +69,7 @@
             </button>
         </div>
     </header>    <footer>
-        <p>© 2025 Rotter News Reader</p>
+        <p>© 2026 Rotter News Reader</p>
         <div class="footer-links">
             <a href="https://www.rotter.net" target="_blank" rel="noopener">Rotter.net</a>
         </div>

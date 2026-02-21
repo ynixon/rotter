@@ -43,13 +43,13 @@ jobs:
             "platforms;android-34" \
             "build-tools;34.0.0"
 
-      - name: Build debug APK
+      - name: Build release APK
         working-directory: android
-        run: gradle assembleDebug --no-daemon -PapkVersionCode=${{ github.run_number }} -PapkVersionName="1.0.${{ github.run_number }}"
+        run: gradle assembleRelease --no-daemon -PapkVersionCode=${{ github.run_number }} -PapkVersionName="1.0.${{ github.run_number }}"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: rotter-news-debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          name: rotter-news-apk
+          path: android/app/build/outputs/apk/release/*.apk
           retention-days: 30
