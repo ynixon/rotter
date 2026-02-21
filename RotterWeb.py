@@ -103,16 +103,30 @@ def _extract_from_jina(jina_text):
     text = re.sub(r'https?://\S+', ' ', text)
     # Remove markdown heading/separator lines (===, ---, ###)
     text = re.sub(r'^[ \t]*[=\-#*]{2,}[ \t]*$', '', text, flags=re.MULTILINE)
+    # Remove markdown table rows (comments section on rotter is a | table |)
+    text = re.sub(r'^[ \t]*\|.*$', '', text, flags=re.MULTILINE)
     text = re.sub(r'[ \t]+', ' ', text)
 
-    # Find the block with the most Hebrew characters (= the article body)
+    # Find the block with the most Hebrew characters that is prose (not nav)
     best, best_heb = '', 0
     for block in re.split(r'\n{2,}', text):
         block = block.strip()
         heb = sum(1 for c in block if '\u05d0' <= c <= '\u05ea')
         if heb > best_heb and len(block) > 40:
             best, best_heb = block, heb
-    return best if best_heb > 30 else None
+
+    if best_heb > 30:
+        return best
+
+    # Fallback: rotter scoop articles are sometimes just the headline.
+    # Return the page title from the Jina header (first non-empty line after
+    # "Title:") as a minimal body rather than nothing.
+    title_m = re.search(r'^Title:\s*(.+)$', jina_text, re.MULTILINE)
+    if title_m:
+        title = title_m.group(1).strip()
+        if any('\u05d0' <= c <= '\u05ea' for c in title):
+            return title
+    return None
 
 
 
