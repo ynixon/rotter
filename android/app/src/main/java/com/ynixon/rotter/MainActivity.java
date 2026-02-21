@@ -117,16 +117,18 @@ public class MainActivity extends AppCompatActivity {
             btnExpand.animate().rotation(isExpanded ? 180f : 0f).setDuration(200).start();
             if (isExpanded && tickerIndex < entries.size()) {
                 NewsEntry cur = entries.get(tickerIndex);
-                String desc = cur.getDescription();
-                if (desc != null && !desc.isEmpty()) {
-                    tvDescription.setText(desc);
-                    tvDescription.setVisibility(View.VISIBLE);
-                } else {
-                    tvDescription.setVisibility(View.GONE);
-                }
+                // Show link button immediately if we have a URL
                 String url = cur.getLink();
                 btnLink.setVisibility(
                     (url != null && !url.isEmpty()) ? View.VISIBLE : View.GONE);
+                // Show body: use cache if available, otherwise fetch asynchronously
+                if (cur.isBodyFetched()) {
+                    showBodyText(cur.getCachedBody());
+                } else {
+                    tvDescription.setText(R.string.loading_body);
+                    tvDescription.setVisibility(View.VISIBLE);
+                    fetchArticleBody(cur);
+                }
             } else {
                 tvDescription.setVisibility(View.GONE);
                 btnLink.setVisibility(View.GONE);
@@ -297,6 +299,28 @@ public class MainActivity extends AppCompatActivity {
             e.setIsNew(false);
         } else {
             tvNewBadge.setVisibility(View.GONE);
+        }
+    }
+
+    private void fetchArticleBody(NewsEntry entry) {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            String body = ArticleFetcher.fetchBody(entry.getLink());
+            entry.setCachedBody(body != null ? body : "");
+            handler.post(() -> {
+                // Only update UI if this entry is still the one being shown
+                if (tickerIndex < entries.size() && entries.get(tickerIndex) == entry && isExpanded) {
+                    showBodyText(entry.getCachedBody());
+                }
+            });
+        });
+    }
+
+    private void showBodyText(String body) {
+        if (body != null && !body.isEmpty()) {
+            tvDescription.setText(body);
+            tvDescription.setVisibility(View.VISIBLE);
+        } else {
+            tvDescription.setVisibility(View.GONE);
         }
     }
 

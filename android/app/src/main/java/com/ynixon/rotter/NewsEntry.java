@@ -7,6 +7,8 @@ public class NewsEntry {
     private final String description;
     private final long timestamp;
     private boolean isNew;
+    // Populated lazily by ArticleFetcher (RSS <description> is always empty on rotter.net)
+    private String cachedBody = null;
 
     public NewsEntry(String title, String date, String link, String description, long timestamp) {
         this.title = title;
@@ -23,4 +25,9 @@ public class NewsEntry {
     public long   getTimestamp()   { return timestamp; }
     public boolean isNew()         { return isNew; }
     public void setIsNew(boolean isNew) { this.isNew = isNew; }
+
+    /** null = not yet fetched; "" = fetched but empty; otherwise the article body. */
+    public String getCachedBody()              { return cachedBody; }
+    public void   setCachedBody(String body)   { this.cachedBody = body; }
+    public boolean isBodyFetched()             { return cachedBody != null; }
 }
