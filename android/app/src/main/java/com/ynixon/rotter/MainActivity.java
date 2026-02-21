@@ -115,6 +115,9 @@ public class MainActivity extends AppCompatActivity {
         btnExpand.setOnClickListener(v -> {
             isExpanded = !isExpanded;
             btnExpand.animate().rotation(isExpanded ? 180f : 0f).setDuration(200).start();
+            // Give the user a fresh countdown after interacting with the card
+            cancelTick();
+            scheduleNextTick();
             if (isExpanded && tickerIndex < entries.size()) {
                 NewsEntry cur = entries.get(tickerIndex);
                 // Show link button immediately if we have a URL
