@@ -259,17 +259,21 @@ $(document).ready(function () {
             return;
         }
 
-        // Show the link straight away — never leave the user on a spinner
+        // Show the link straight away with a loading hint
         showLink();
+        const $loadingHint = $('<div class="body-loading">טוען תוכן... ⏳</div>');
+        tickerBody.append($loadingHint);
 
-        // Background fetch: upgrade to full text if the server can get it
+        // Background fetch: upgrade to full text if the server can get it.
+        // Timeout 25 s — parallel server-side fetches finish within ~22 s.
         $.ajax({
             url: "/getArticle",
             data: { url: url },
             type: "GET",
             dataType: "json",
-            timeout: 12000,
+            timeout: 25000,
             success: function (data) {
+                $loadingHint.remove();
                 const text = (data && data.body) ? data.body : "";
                 bodyCache[url] = text;
                 if (text && isExpanded && tickerItems.length > 0
@@ -279,6 +283,7 @@ $(document).ready(function () {
                 // If text is empty the link stays — nothing to do
             },
             error: function () {
+                $loadingHint.remove();
                 bodyCache[url] = "";
                 // Link is already visible — nothing extra to do on error
             }

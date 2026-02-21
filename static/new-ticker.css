@@ -61,6 +61,15 @@
 #ticker-body .article-link:hover {
     text-decoration: underline;
 }
+/* Shown while the background article fetch is in progress */
+#ticker-body .body-loading {
+    font-size: 0.95rem;
+    color: var(--accent-color, #0F80FF);
+    opacity: 0.75;
+    text-align: center;
+    margin-top: 0.4rem;
+    animation: pulse 1.5s infinite;
+}
 
 /* ── New indicator ──────────────────────────────────────────────────────── */
 .new-indicator {
