@@ -147,6 +147,49 @@ def get_article():
     return jsonify({'body': ''})
 
 
+@app.route('/debugArticle')
+def debug_article():
+    """Diagnostic endpoint — visit /debugArticle?url=<article_url> to see what each strategy returns."""
+    url = request.args.get('url', '').strip()
+    if not url:
+        return jsonify({'error': 'pass ?url=<article_url>'}), 400
+    out = {}
+
+    # Jina
+    try:
+        resp = _requests.get('https://r.jina.ai/' + url,
+                             headers={'Accept': 'text/plain', 'X-No-Cache': 'true'}, timeout=20)
+        out['jina_status'] = resp.status_code
+        out['jina_len'] = len(resp.text)
+        out['jina_preview'] = resp.text[:600]
+    except Exception as e:
+        out['jina_error'] = str(e)
+
+    # Direct
+    try:
+        resp = _requests.get(url, headers=_ARTICLE_HEADERS, timeout=10, allow_redirects=True)
+        out['direct_status'] = resp.status_code
+        out['direct_len'] = len(resp.content)
+        raw = _decode_response(resp.content)
+        out['direct_has_scoopBody'] = 'scoopBody' in raw
+        out['direct_preview'] = raw[:400]
+    except Exception as e:
+        out['direct_error'] = str(e)
+
+    # allorigins
+    try:
+        resp = _requests.get('https://api.allorigins.win/raw?url=' + _urlparse.quote(url, safe=''), timeout=12)
+        out['allorigins_status'] = resp.status_code
+        out['allorigins_len'] = len(resp.content)
+        raw = _decode_response(resp.content)
+        out['allorigins_has_scoopBody'] = 'scoopBody' in raw
+        out['allorigins_preview'] = raw[:400]
+    except Exception as e:
+        out['allorigins_error'] = str(e)
+
+    return jsonify(out)
+
+
 @app.route('/getFeed')
 def get_feed():
     try:
