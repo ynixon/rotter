@@ -1,4 +1,79 @@
-/* New indicator for ticker items */
+/* ── Hours-back range selector ─────────────────────────────────────────── */
+#range-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+    font-size: 1.1rem;
+    color: var(--text-secondary, #aaa);
+}
+
+#range-bar label {
+    font-weight: 600;
+}
+
+#hours-select {
+    background: var(--card-bg, #1e1e1e);
+    color: var(--text-primary, #fff);
+    border: 1px solid var(--accent-color, #0F80FF);
+    border-radius: 6px;
+    padding: 0.2rem 0.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+/* ── Message counter ────────────────────────────────────────────────────── */
+#ticker-counter {
+    font-size: 0.95rem;
+    color: var(--text-secondary, #aaa);
+    text-align: center;
+    margin-top: 0.3rem;
+    min-height: 1.2em;
+}
+
+/* ── Expand chevron button ──────────────────────────────────────────────── */
+#btn-expand {
+    display: block;
+    margin: 0.4rem auto 0;
+    background: transparent;
+    border: none;
+    color: var(--accent-color, #0F80FF);
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 0.2rem 0.6rem;
+    transition: color 0.2s;
+}
+
+#btn-expand:hover {
+    color: var(--accent-hover, #3a9fff);
+}
+
+#btn-expand i {
+    transition: transform 0.2s ease;
+}
+
+/* ── Article body area ──────────────────────────────────────────────────── */
+#ticker-body {
+    margin-top: 0.8rem;
+    padding: 0.8rem 1rem;
+    background: var(--card-bg, #1e1e1e);
+    border-radius: 8px;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    text-align: right;
+    max-height: 12rem;
+    overflow-y: auto;
+    color: var(--text-primary, #fff);
+}
+
+#ticker-body.hidden {
+    display: none;
+}
+
+/* ── New indicator for ticker items */
 .new-indicator {
     display: inline-block;
     margin-right: 10px;
@@ -21,10 +96,14 @@
 
 /* Make sure the ticker wrapper has enough height for 2 lines of content plus the link */
 .ticker-wrapper {
-    height: 14rem; /* Increased from 11rem to ensure two lines of content and the link are visible */
+    min-height: 14rem;
+    height: auto;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
+    cursor: pointer;
+    user-select: none;
 }
 
 /* Make sure the ticker can fit 2 lines of headline text */
