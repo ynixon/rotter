@@ -86,7 +86,7 @@ h1 {
 #range-bar {
     display: flex;
     align-items: center;
-    justify-content: flex-start;   /* flex-start = RIGHT in RTL */
+    justify-content: flex-end;     /* flex-end = LEFT in RTL */
     gap: 0.5rem;
     padding: 3px 14px 5px;
     font-size: 0.9rem;

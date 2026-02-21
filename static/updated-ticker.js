@@ -257,7 +257,7 @@ $(document).ready(function () {
                 bodyCache[url] = "";
                 if (isExpanded && tickerItems.length > 0
                         && tickerItems[tickerIndex].link === url) {
-                    tickerBody.addClass("hidden").text("");
+                    tickerBody.text("שגיאה בטעינת התוכן").removeClass("hidden");
                 }
             }
         });
@@ -267,7 +267,7 @@ $(document).ready(function () {
         if (text) {
             tickerBody.text(text).removeClass("hidden");
         } else {
-            tickerBody.addClass("hidden").text("");
+            tickerBody.text("אין תוכן זמין").removeClass("hidden");
         }
     }
 
