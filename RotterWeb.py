@@ -3,8 +3,18 @@ import feedparser
 import html
 import re
 import os
-import urllib.request
+import requests as _requests
 from datetime import datetime, timedelta
+
+_ARTICLE_HEADERS = {
+    'User-Agent': (
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+        'AppleWebKit/537.36 (KHTML, like Gecko) '
+        'Chrome/120.0.0.0 Safari/537.36'
+    ),
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'he,en;q=0.9',
+}
 
 # Function to format date
 def format_time(date_str):
@@ -81,9 +91,9 @@ def get_article():
     if not url or not url.startswith('http'):
         return jsonify({'error': 'Invalid URL'}), 400
     try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'RotterNews-Web/1.0'})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            raw = resp.read().decode('windows-1255', errors='replace')
+        resp = _requests.get(url, headers=_ARTICLE_HEADERS, timeout=12, allow_redirects=True)
+        resp.raise_for_status()
+        raw = resp.content.decode('windows-1255', errors='replace')
         body = _extract_article_body(raw)
         return jsonify({'body': body or ''})
     except Exception as e:
