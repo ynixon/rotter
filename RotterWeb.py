@@ -103,7 +103,27 @@ def get_article():
     if not url or not url.startswith('http'):
         return jsonify({'error': 'Invalid URL'}), 400
 
-    # Attempt 1: direct fetch (Render → rotter.net)
+    # Strategy 1: Jina Reader API — extracts clean article text,
+    # handles anti-bot measures, JS rendering, and works with Hebrew.
+    try:
+        resp = _requests.get(
+            'https://r.jina.ai/' + url,
+            headers={'Accept': 'text/plain', 'X-No-Cache': 'true'},
+            timeout=20,
+        )
+        resp.raise_for_status()
+        text = resp.text.strip()
+        # Jina prepends metadata (Title / URL Source / ...) then "---"
+        parts = re.split(r'\n-{3,}\n', text, maxsplit=1)
+        content = parts[-1].strip() if len(parts) > 1 else text
+        # Strip markdown link syntax  [label](url) → label
+        content = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', content)
+        if len(content) > 20:
+            return jsonify({'body': content})
+    except Exception:
+        pass
+
+    # Strategy 2: direct fetch with browser headers + Referer
     try:
         resp = _requests.get(url, headers=_ARTICLE_HEADERS, timeout=10, allow_redirects=True)
         resp.raise_for_status()
@@ -113,15 +133,18 @@ def get_article():
     except Exception:
         pass
 
-    # Attempt 2: via allorigins CORS proxy (different IP, bypasses IP blocks)
+    # Strategy 3: allorigins CORS proxy (last resort)
     try:
         proxy_url = 'https://api.allorigins.win/raw?url=' + _urlparse.quote(url, safe='')
-        resp = _requests.get(proxy_url, headers=_ARTICLE_HEADERS, timeout=12)
+        resp = _requests.get(proxy_url, timeout=12)
         resp.raise_for_status()
         body = _extract_article_body(_decode_response(resp.content))
-        return jsonify({'body': body or ''})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        if body:
+            return jsonify({'body': body})
+    except Exception:
+        pass
+
+    return jsonify({'body': ''})
 
 
 @app.route('/getFeed')
