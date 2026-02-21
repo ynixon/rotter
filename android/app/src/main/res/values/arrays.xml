@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="hours_labels">
+        <item>שעה אחת</item>
+        <item>2 שעות</item>
+        <item>4 שעות</item>
+        <item>8 שעות</item>
+        <item>16 שעות</item>
+    </string-array>
+</resources>

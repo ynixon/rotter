@@ -4,8 +4,11 @@
     <string name="refresh">רענון</string>
     <string name="toggle_theme">החלף ערכת נושא</string>
     <string name="loading">טוען חדשות…</string>
+    <string name="loading_body">טוען תוכן…</string>
     <string name="error_loading">שגיאה בטעינת החדשות. נסה שוב.</string>
     <string name="new_headlines">כותרות חדשות</string>
     <string name="view_source">צפה במקור ↗</string>
-    <string name="footer">© 2025 Rotter News • rotter.net</string>
+    <string name="expand_content">הרחב תוכן</string>
+    <string name="range_label">טווח:</string>
+    <string name="footer">© 2026 Rotter News • rotter.net</string>
 </resources>

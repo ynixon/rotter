@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main, master]
+    branches-ignore: [main, master]
     paths:
       - 'android/**'
       - '.github/workflows/build-apk.yml'
@@ -32,6 +32,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.2'
+          cache-disabled: true
 
       # ubuntu-latest has Android SDK pre-installed; accept licenses and
       # ensure the exact platform + build-tools our project requires are present
@@ -42,18 +43,9 @@ jobs:
             "platforms;android-34" \
             "build-tools;34.0.0"
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: ${{ runner.os }}-gradle-
-
       - name: Build debug APK
         working-directory: android
-        run: gradle assembleDebug --no-daemon
+        run: gradle assembleDebug --no-daemon -PapkVersionCode=${{ github.run_number }} -PapkVersionName="1.0.${{ github.run_number }}"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -61,20 +53,3 @@ jobs:
           name: rotter-news-debug-apk
           path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 30
-
-      - name: Create GitHub Release
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: apk-${{ github.run_number }}
-          name: "Rotter News APK (build #${{ github.run_number }})"
-          body: |
-            Android APK built automatically from commit ${{ github.sha }}.
-
-            **Install:** Download `app-debug.apk` below and sideload it on your Android device.
-            (Enable "Install from unknown sources" in Android settings first.)
-          files: android/app/build/outputs/apk/debug/*.apk
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

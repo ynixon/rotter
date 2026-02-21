@@ -29,7 +29,7 @@ public class RssFetcher {
     private static final SimpleDateFormat TIME_FMT =
         new SimpleDateFormat("HH:mm", Locale.ENGLISH);
 
-    public static List<NewsEntry> fetch() {
+    public static List<NewsEntry> fetch(int hoursBack) {
         try {
             URL url = new URL(RSS_URL);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -38,7 +38,7 @@ public class RssFetcher {
             conn.setRequestProperty("User-Agent", "RotterNews-Android/1.0");
             if (conn.getResponseCode() == 200) {
                 try (InputStream is = conn.getInputStream()) {
-                    return parse(is);
+                    return parse(is, hoursBack);
                 }
             }
         } catch (Exception e) {
@@ -47,17 +47,17 @@ public class RssFetcher {
         return null;
     }
 
-    private static List<NewsEntry> parse(InputStream is)
+    private static List<NewsEntry> parse(InputStream is, int hoursBack)
             throws XmlPullParserException, IOException {
 
         List<NewsEntry> result = new ArrayList<>();
-        long threeHoursAgo = System.currentTimeMillis() - 3 * 60 * 60 * 1000L;
+        long cutoff = System.currentTimeMillis() - (long) hoursBack * 60 * 60 * 1000L;
 
         XmlPullParser xpp = Xml.newPullParser();
         xpp.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false);
-        xpp.setInput(is, "UTF-8");
+        xpp.setInput(is, null); // honour the feed's own encoding declaration (windows-1255)
 
-        String title = null, pubDate = null, link = null;
+        String title = null, pubDate = null, link = null, description = null;
         boolean inItem = false;
         String currentTag = null;
 
@@ -68,7 +68,7 @@ public class RssFetcher {
                     currentTag = xpp.getName();
                     if ("item".equals(currentTag)) {
                         inItem = true;
-                        title = null; pubDate = null; link = null;
+                        title = null; pubDate = null; link = null; description = null;
                     }
                     break;
 
@@ -76,9 +76,10 @@ public class RssFetcher {
                     if (inItem && currentTag != null) {
                         String text = xpp.getText().trim();
                         switch (currentTag) {
-                            case "title":   title   = text; break;
-                            case "pubDate": pubDate = text; break;
-                            case "link":    link    = text; break;
+                            case "title":       title       = text; break;
+                            case "pubDate":     pubDate     = text; break;
+                            case "link":        link        = text; break;
+                            case "description": description = text; break;
                         }
                     }
                     break;
@@ -86,7 +87,7 @@ public class RssFetcher {
                 case XmlPullParser.END_TAG:
                     if ("item".equals(xpp.getName()) && inItem) {
                         inItem = false;
-                        NewsEntry entry = buildEntry(title, pubDate, link, threeHoursAgo);
+                        NewsEntry entry = buildEntry(title, pubDate, link, description, cutoff);
                         if (entry != null) result.add(entry);
                     }
                     currentTag = null;
@@ -100,17 +101,20 @@ public class RssFetcher {
     }
 
     private static NewsEntry buildEntry(String title, String pubDate, String link,
-                                        long threeHoursAgo) {
+                                        String description, long cutoff) {
         if (title == null || pubDate == null) return null;
 
         Date date = tryParseDate(pubDate);
-        if (date == null || date.getTime() < threeHoursAgo) return null;
+        if (date == null || date.getTime() < cutoff) return null;
 
         String cleanTitle = Html.fromHtml(title, Html.FROM_HTML_MODE_LEGACY).toString().trim();
+        String cleanDesc  = (description != null)
+            ? Html.fromHtml(description, Html.FROM_HTML_MODE_LEGACY).toString().trim()
+            : null;
         String timeStr    = TIME_FMT.format(date);
         long   timestamp  = date.getTime() / 1000L;
 
-        return new NewsEntry(cleanTitle, timeStr, link, timestamp);
+        return new NewsEntry(cleanTitle, timeStr, link, cleanDesc, timestamp);
     }
 
     private static Date tryParseDate(String raw) {
