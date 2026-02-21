@@ -1,4 +1,55 @@
-/* New indicator for ticker items */
+/* ── Message counter ────────────────────────────────────────────────────── */
+#ticker-counter {
+    font-size: 0.95rem;
+    color: var(--text-secondary, #aaa);
+    text-align: center;
+    margin-top: 0.3rem;
+    min-height: 1.2em;
+}
+
+/* ── Expand chevron button ──────────────────────────────────────────────── */
+#btn-expand {
+    display: block;
+    margin: 0.4rem auto 0;
+    background: transparent;
+    border: none;
+    color: var(--accent-color, #0F80FF);
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 0.2rem 0.6rem;
+    transition: color 0.2s;
+}
+
+#btn-expand:hover {
+    color: var(--accent-hover, #3a9fff);
+}
+
+#btn-expand i {
+    transition: transform 0.2s ease;
+}
+
+/* ── Article body area ──────────────────────────────────────────────────── */
+#ticker-body {
+    margin-top: 0.8rem;
+    padding: 0.8rem 1rem;
+    background: var(--card-bg, #1e1e1e);
+    border-radius: 8px;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    text-align: right;
+    max-height: 12rem;
+    overflow-y: auto;
+    color: var(--text-primary, #fff);
+    width: 100%;
+}
+
+#ticker-body.hidden {
+    display: none;
+}
+
+/* ── New indicator ──────────────────────────────────────────────────────── */
 .new-indicator {
     display: inline-block;
     margin-right: 10px;
@@ -8,7 +59,7 @@
     vertical-align: middle;
 }
 
-/* Updated ticker time display to accommodate the new indicator */
+/* ── Ticker time/title text ─────────────────────────────────────────────── */
 .ticker-time {
     font-size: 1.6rem;
     color: var(--accent-color);
@@ -19,20 +70,11 @@
     justify-content: center;
 }
 
-/* Make sure the ticker wrapper has enough height for 2 lines of content plus the link */
-.ticker-wrapper {
-    height: 14rem; /* Increased from 11rem to ensure two lines of content and the link are visible */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* Make sure the ticker can fit 2 lines of headline text */
 .ticker-title {
     font-size: 2.2rem;
     line-height: 1.3;
     font-weight: 600;
-    max-height: 6rem; /* Slightly increased from 5.8rem */
+    max-height: 6rem;
     overflow: hidden;
     white-space: normal;
     word-wrap: break-word;
@@ -40,7 +82,7 @@
     margin: 0 auto;
 }
 
-/* Styling for loading message */
+/* ── Loading message ────────────────────────────────────────────────────── */
 .loading-message {
     font-size: 2.5rem;
     color: var(--accent-color);
@@ -48,7 +90,7 @@
     animation: pulse 1.5s infinite;
 }
 
-/* Styling for the ticker link to original source */
+/* ── Source link ────────────────────────────────────────────────────────── */
 .ticker-link {
     margin-top: 0.8rem;
     text-align: center;
@@ -78,13 +120,6 @@
 }
 
 @keyframes pulse {
-    0% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.5;
-    }
-    100% {
-        opacity: 1;
-    }
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
 }

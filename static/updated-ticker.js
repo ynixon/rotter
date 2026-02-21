@@ -7,7 +7,12 @@ $(document).ready(function () {
     const refreshButton = $("#refreshFeed");
     const headerTicker = $("#header-ticker");
     const connectionStatus = $("#connection-status");
-    
+    const tickerCounter = $("#ticker-counter");
+    const btnExpand = $("#btn-expand");
+    const tickerBody = $("#ticker-body");
+    const tickerWrapper = $("#ticker-wrapper");
+    const hoursSelect = $("#hours-select");
+
     // State variables
     let cachedEntries = JSON.parse(localStorage.getItem("rotterNews") || "[]");
     let isOffline = false;
@@ -15,13 +20,98 @@ $(document).ready(function () {
     let tickerIndex = 0;
     let tickerAnimation;
     let lastSeenTimestamp = parseInt(localStorage.getItem("lastSeenTimestamp") || "0", 10);
-    
-    // Configuration options
-    const CONFIG = {
-        maxHeadlineAge: 2 * 60 * 60 * 1000, // 2 hours in milliseconds
-        autoReloadInterval: 10000 // 10 seconds in milliseconds
-    };
-    
+    let isExpanded = false;
+    // bodyCache: url → fetched text (empty string means fetched but empty)
+    let bodyCache = {};
+
+    // Hours-back preference (default 4, matches Android)
+    let hoursBack = parseInt(localStorage.getItem("hoursBack") || "4", 10);
+    if (![1, 2, 4, 8, 16].includes(hoursBack)) hoursBack = 4;
+
+    // Configuration
+    const DISPLAY_MS = 5000; // normal display time per card
+    const FADE_MS    = 300;  // fade transition duration
+
+    // ── Hours selector ──────────────────────────────────────────────────────
+    hoursSelect.val(hoursBack.toString());
+    let hoursReady = false; // skip the initial programmatic set
+    hoursSelect.on("change", function () {
+        if (!hoursReady) { hoursReady = true; return; }
+        const selected = parseInt($(this).val(), 10);
+        if (selected !== hoursBack) {
+            hoursBack = selected;
+            localStorage.setItem("hoursBack", hoursBack.toString());
+            showLoading();
+            fetchNewsFeed();
+        }
+    });
+    // Mark ready after first programmatic set
+    setTimeout(() => { hoursReady = true; }, 0);
+
+    // ── Expand button ────────────────────────────────────────────────────────
+    btnExpand.on("click", function (e) {
+        e.stopPropagation();
+        isExpanded = !isExpanded;
+        btnExpand.find("i").css("transform", isExpanded ? "rotate(180deg)" : "rotate(0deg)");
+
+        if (isExpanded) {
+            // Pause auto-advance while the article body is open
+            cancelTick();
+            if (tickerItems.length > 0) {
+                const cur = tickerItems[tickerIndex];
+                if (cur.link) {
+                    fetchAndShowBody(cur);
+                } else {
+                    tickerBody.text("אין קישור למאמר").removeClass("hidden");
+                }
+            }
+        } else {
+            // User manually closed — hide body and resume auto-advance
+            tickerBody.addClass("hidden").text("");
+            scheduleNextTick();
+        }
+    });
+
+    // ── Left/right tap zones on the ticker card ──────────────────────────────
+    tickerWrapper.on("click", function (e) {
+        // Ignore clicks on the expand button or body area
+        if ($(e.target).closest("#btn-expand, #ticker-body, .ticker-link a").length) return;
+        if (tickerItems.length === 0) return;
+
+        const wrapperLeft = tickerWrapper.offset().left;
+        const wrapperWidth = tickerWrapper.outerWidth();
+        const clickX = e.clientX - wrapperLeft;
+
+        cancelTick();
+        if (clickX < wrapperWidth / 2) {
+            // Left half → previous
+            tickerIndex = (tickerIndex - 1 + tickerItems.length) % tickerItems.length;
+            showEntry("prev");
+        } else {
+            // Right half → next
+            tickerIndex = (tickerIndex + 1) % tickerItems.length;
+            showEntry("next");
+        }
+    });
+
+    // ── Swipe support ────────────────────────────────────────────────────────
+    let touchStartX = 0;
+    tickerWrapper[0].addEventListener("touchstart", e => {
+        touchStartX = e.changedTouches[0].clientX;
+    }, { passive: true });
+    tickerWrapper[0].addEventListener("touchend", e => {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(dx) < 40) return; // too short — treat as tap
+        cancelTick();
+        if (dx < 0) {
+            tickerIndex = (tickerIndex + 1) % tickerItems.length;
+            showEntry("next");
+        } else {
+            tickerIndex = (tickerIndex - 1 + tickerItems.length) % tickerItems.length;
+            showEntry("prev");
+        }
+    }, { passive: true });
+
     // Initialize the app
     showLoading();
     startConnectionMonitor();
@@ -30,234 +120,220 @@ $(document).ready(function () {
 
     // Event listener for refresh button
     refreshButton.on("click", function() {
-        // Visual feedback that refresh is happening
         const icon = $(this).find("i");
         icon.addClass("fa-spin");
         $(this).prop("disabled", true);
-        
+
         showLoading();
         fetchNewsFeed().always(function() {
-            // Reset button state after 1s
             setTimeout(function() {
                 icon.removeClass("fa-spin");
                 refreshButton.prop("disabled", false);
             }, 1000);
-            
-            // Reset ticker index to 0 to start from newest headline
             tickerIndex = 0;
-            
-            // Restart the ticker animation to show the newest headline
             if (tickerAnimation) {
-                clearTimeout(tickerAnimation);
+                cancelTick();
                 animateTicker();
             }
         });
     });
-    
+
     // Initialize the ticker animation
     function initTickerAnimation() {
         if (cachedEntries.length > 0) {
             updateTickerItems(cachedEntries);
         }
-        
-        // Start the ticker animation
         animateTicker();
     }
-    
-    // Animate the ticker as a fullscreen news display - showing one message at a time for 5 seconds
+
+    // Show one entry — direction: "next" | "prev" | "auto"
+    function showEntry(direction) {
+        if (tickerItems.length === 0) return;
+        // Collapse expand on every card transition
+        collapseExpand();
+
+        const item = tickerItems[tickerIndex];
+        updateCounter();
+
+        if (direction === "auto") {
+            // Fade transition for timer-driven advance
+            headerTicker.animate({ opacity: 0 }, FADE_MS, function () {
+                renderCard(item);
+                headerTicker.animate({ opacity: 1 }, FADE_MS, function () {
+                    scheduleNextTick();
+                });
+            });
+        } else {
+            // Immediate for manual tap/swipe
+            renderCard(item);
+            scheduleNextTick();
+        }
+
+        if (item.isNew) {
+            tickerItems[tickerIndex].isNew = false;
+        }
+    }
+
+    // Auto-advance loop entry point
     function animateTicker() {
         if (tickerItems.length === 0) {
-            // No items to show
             headerTicker.html("<span class='ticker-item'>אין חדשות להצגה</span>");
             return;
         }
-        
-        // Show current ticker item
-        const currentItem = tickerItems[tickerIndex];
-        const isNew = currentItem.isNew ? " new-message" : "";
-        
-        // Clear any existing animations
-        if (headerTicker.is(":animated")) {
-            headerTicker.stop(true);
-        }
-        
-        // Reset position
-        headerTicker.css({
-            opacity: 0,
-            transform: "translateY(10px)" 
-        });
-        
-        // Make sure we have valid values
-        const timeStr = currentItem.time || "";
-        const titleStr = currentItem.title || "אין כותרת";
-        
-        // Add new indicator icon if it's a new headline
-        const newIndicator = currentItem.isNew ? '<span class="new-indicator"><i class="fas fa-star"></i></span>' : "";
-        
-        // Add link to original source if available
-        const linkHtml = currentItem.link ? 
-            `<div class="ticker-link"><a href="${currentItem.link}" target="_blank" rel="noopener noreferrer">צפה במקור <i class="fas fa-external-link-alt"></i></a></div>` : "";
-            
+        showEntry("auto");
+    }
+
+    function renderCard(item) {
+        if (headerTicker.is(":animated")) headerTicker.stop(true);
+
+        const timeStr = item.time || "";
+        const titleStr = item.title || "אין כותרת";
+        const newIndicator = item.isNew
+            ? '<span class="new-indicator"><i class="fas fa-star"></i></span>' : "";
+        const linkHtml = item.link
+            ? `<div class="ticker-link"><a href="${item.link}" target="_blank" rel="noopener noreferrer">צפה במקור <i class="fas fa-external-link-alt"></i></a></div>` : "";
+
+        headerTicker.css({ opacity: 0, transform: "translateY(10px)" });
         headerTicker.html(`
-            <span class="ticker-item${isNew}">
+            <span class="ticker-item${item.isNew ? " new-message" : ""}">
                 <div class="ticker-time">${timeStr} ${newIndicator}</div>
                 <div class="ticker-title">${titleStr}</div>
                 ${linkHtml}
             </span>
         `);
-        
-        // If it was a new item, mark it as seen
-        if (currentItem.isNew) {
-            tickerItems[tickerIndex].isNew = false;
+        headerTicker.animate({ opacity: 1, transform: "translateY(0)" }, 600);
+    }
+
+    function collapseExpand() {
+        isExpanded = false;
+        btnExpand.find("i").css("transform", "rotate(0deg)");
+        tickerBody.addClass("hidden").text("");
+    }
+
+    function updateCounter() {
+        tickerCounter.text(tickerItems.length > 0
+            ? `${tickerIndex + 1} / ${tickerItems.length}` : "");
+    }
+
+    function scheduleNextTick() {
+        cancelTick();
+        const delay = isExpanded ? DISPLAY_MS * 2 : DISPLAY_MS;
+        tickerAnimation = setTimeout(function () {
+            tickerIndex = (tickerIndex + 1) % tickerItems.length;
+            animateTicker();
+        }, delay);
+    }
+
+    function cancelTick() {
+        clearTimeout(tickerAnimation);
+        tickerAnimation = null;
+    }
+
+    // Fetch article body from the server and display it
+    function fetchAndShowBody(item) {
+        const url = item.link;
+        if (!url) return;
+
+        if (url in bodyCache) {
+            displayBody(bodyCache[url]);
+            return;
         }
-        
-        // Fade in the message with slight upward movement
-        headerTicker.animate({
-            opacity: 1,
-            transform: "translateY(0)"
-        }, 600, "swing", function() {
-            // Wait for 5 seconds before moving to the next message (longer display for fullscreen view)
-            clearTimeout(tickerAnimation);
-            tickerAnimation = setTimeout(function() {
-                // Fade out with slight downward movement
-                headerTicker.animate({
-                    opacity: 0,
-                    transform: "translateY(-10px)"
-                }, 600, "swing", function() {
-                    // Move to next item
-                    tickerIndex = (tickerIndex + 1) % tickerItems.length;
-                    
-                    // Check if we've seen all items and should restart from beginning
-                    let allSeen = true;
-                    for (let i = 0; i < tickerItems.length; i++) {
-                        if (tickerItems[i].isNew) {
-                            allSeen = false;
-                            break;
-                        }
-                    }
-                    
-                    // If all have been seen and we're at the end, restart from the beginning
-                    if (allSeen && tickerIndex === 0) {
-                        console.log("All headlines seen, restarting from beginning");
-                        // Reset isNew flags for all items to keep cycling through
-                        for (let i = 0; i < tickerItems.length; i++) {
-                            tickerItems[i].isNew = false;
-                        }
-                    }
-                    
-                    // Schedule the next animation
-                    clearTimeout(tickerAnimation);
-                    tickerAnimation = setTimeout(animateTicker, 200);
-                });
-            }, 5000); // Display for 5 seconds
+
+        tickerBody.text("טוען תוכן…").removeClass("hidden");
+
+        $.ajax({
+            url: "/getArticle",
+            data: { url: url },
+            type: "GET",
+            dataType: "json",
+            timeout: 12000,
+            success: function (data) {
+                const text = (data && data.body) ? data.body : "";
+                bodyCache[url] = text;
+                // Only update UI if this item is still on screen and still expanded
+                if (isExpanded && tickerItems.length > 0
+                        && tickerItems[tickerIndex].link === url) {
+                    displayBody(text);
+                }
+            },
+            error: function () {
+                bodyCache[url] = "";
+                if (isExpanded && tickerItems.length > 0
+                        && tickerItems[tickerIndex].link === url) {
+                    tickerBody.text("שגיאה בטעינת התוכן").removeClass("hidden");
+                }
+            }
         });
     }
-    
+
+    function displayBody(text) {
+        if (text) {
+            tickerBody.text(text).removeClass("hidden");
+        } else {
+            tickerBody.text("אין תוכן זמין").removeClass("hidden");
+        }
+    }
+
     // Monitor connection to backend
     function startConnectionMonitor() {
-        // Initial check
         checkConnection();
-        
-        // Periodic checks
-        setInterval(checkConnection, 30000); // Check every 30 seconds
-        
-        // Function to check connection status
+        setInterval(checkConnection, 30000);
+
         function checkConnection() {
-            fetch("/getFeed", { 
-                method: "HEAD",
-                cache: "no-store",
-                timeout: 5000
-            })
+            fetch("/getFeed", { method: "HEAD", cache: "no-store" })
             .then(response => {
                 if (response.ok && isOffline) {
-                    // We're back online
-                    console.log("Connection restored");
                     isOffline = false;
                     connectionStatus.addClass("hidden");
                     $("body").removeClass("offline-mode");
                     fetchNewsFeed();
-                    
-                    // Show a notification that we're back online
-                    const notification = $('<div class="new-entry-notification" style="background-color: #4CAF50;"></div>')
-                        .text("חיבור לשרת הוחזר")
-                        .appendTo("body");
-                        
-                    setTimeout(() => {
-                        notification.addClass("show");
-                        setTimeout(() => {
-                            notification.removeClass("show");
-                            setTimeout(() => notification.remove(), 500);
-                        }, 3000);
-                    }, 100);
+                    showNotification("חיבור לשרת הוחזר", "#4CAF50");
                 }
             })
-            .catch(error => {
+            .catch(() => {
                 if (!isOffline) {
-                    // We just went offline
-                    console.log("Connection lost:", error);
                     isOffline = true;
                     connectionStatus.removeClass("hidden");
                     $("body").addClass("offline-mode");
-                    
-                    // Show offline notification
-                    const notification = $('<div class="new-entry-notification" style="background-color: #F44336;"></div>')
-                        .text("אין חיבור לשרת - מציג חדשות מזיכרון מקומי")
-                        .appendTo("body");
-                        
-                    setTimeout(() => {
-                        notification.addClass("show");
-                        setTimeout(() => {
-                            notification.removeClass("show");
-                            setTimeout(() => notification.remove(), 500);
-                        }, 3000);
-                    }, 100);
+                    showNotification("אין חיבור לשרת - מציג חדשות מזיכרון מקומי", "#F44336");
                 }
             });
         }
     }
-    
-    // Function to show loading state
+
     function showLoading() {
-        // In fullscreen header mode, we display loading differently
-        // Show loading message directly in the ticker and a notification
         headerTicker.html("<span class='ticker-item'><div class='ticker-title loading-message'>טוען חדשות...</div></span>");
-        
-        // Also show a notification
-        const loadingNotification = $('<div class="new-entry-notification" style="background-color: var(--accent-color);"></div>')
-            .text("טוען חדשות...")
+        showNotification("טוען חדשות...", "var(--accent-color)");
+    }
+
+    function showNotification(text, color) {
+        const n = $('<div class="new-entry-notification"></div>')
+            .text(text)
+            .css("background-color", color)
             .appendTo("body");
-            
         setTimeout(() => {
-            loadingNotification.addClass("show");
+            n.addClass("show");
             setTimeout(() => {
-                loadingNotification.removeClass("show");
-                setTimeout(() => loadingNotification.remove(), 500);
+                n.removeClass("show");
+                setTimeout(() => n.remove(), 500);
             }, 3000);
         }, 100);
     }
-    
-    // Fetch news feed from API - Exposed globally for the mini refresh button
+
+    // Fetch news feed from API
     function fetchNewsFeed() {
         return $.ajax({
             url: "/getFeed",
+            data: { hours: hoursBack },
             type: "GET",
             dataType: "json",
-            timeout: 10000, // 10 second timeout
+            timeout: 10000,
             success: function(data) {
                 if (data && data.entries && Array.isArray(data.entries)) {
-                    console.log("Feed fetched successfully:", data.entries.length, "entries");
-                    
-                    // Debug output
-                    console.log("Sample entry:", data.entries[0]);
-                    
-                    // Save to cache
+                    console.log("Feed fetched:", data.entries.length, "entries");
                     localStorage.setItem("rotterNews", JSON.stringify(data.entries));
                     cachedEntries = data.entries;
-                    
-                    // Process entries for ticker and check for new items
                     processNewEntries(data.entries);
-                    
-                    // Connection is good
                     isOffline = false;
                     connectionStatus.addClass("hidden");
                 } else {
@@ -266,211 +342,129 @@ $(document).ready(function () {
             },
             error: function(xhr, status, error) {
                 console.error("Error fetching feed:", error);
-                
-                // Mark as offline
                 isOffline = true;
                 connectionStatus.removeClass("hidden");
-                
-                // If we have cached entries, continue showing them
                 if (cachedEntries.length > 0) {
-                    // Process cached entries for ticker
                     updateTickerItems(cachedEntries);
                 } else {
-                    showError(status === "timeout" ? 
-                        "זמן טעינת החדשות חרג מהמותר. נא לנסות שוב מאוחר יותר." : 
-                        "לא הצלחנו לטעון את החדשות. נא לרענן את העמוד.");
+                    showError(status === "timeout"
+                        ? "זמן טעינת החדשות חרג מהמותר. נא לנסות שוב מאוחר יותר."
+                        : "לא הצלחנו לטעון את החדשות. נא לרענן את העמוד.");
                 }
             }
         });
     }
-    
-    // Process new entries and check for new items
+
     function processNewEntries(entries) {
-        // Update last seen timestamp
-        const maxTimestamp = Math.max(...entries.map(entry => entry.timestamp || 0));
+        const maxTimestamp = Math.max(...entries.map(e => e.timestamp || 0));
         const prevLastSeen = lastSeenTimestamp;
         const currentTime = new Date().getTime();
-        
-        console.log("Processing entries:", entries.length, "Current time:", new Date(currentTime).toLocaleString());
-        
-        // Filter out entries older than the configured max age
+
         const recentEntries = entries.filter(entry => {
-            const entryTimestamp = entry.timestamp || 0;
-            // Unix timestamps are in seconds, JS timestamps are in milliseconds
-            const entryTime = entryTimestamp * 1000;
-            const age = currentTime - entryTime;
-            console.log("Entry time:", new Date(entryTime).toLocaleString(), "Age:", age/1000/60, "minutes");
-            return age <= CONFIG.maxHeadlineAge;
+            const entryTime = (entry.timestamp || 0) * 1000;
+            return (currentTime - entryTime) <= hoursBack * 60 * 60 * 1000;
         });
-        
-        console.log("Recent entries after filtering:", recentEntries.length);
-        
-        // If all entries are filtered out due to age, use all entries instead
+
         const processedEntries = recentEntries.length > 0 ? recentEntries : entries;
-        
-        // Check for new items
-        const hasNewItems = processedEntries.some(entry => (entry.timestamp || 0) > prevLastSeen);
-        
-        // If we have new items, show a notification
+        const hasNewItems = processedEntries.some(e => (e.timestamp || 0) > prevLastSeen);
+
         if (hasNewItems) {
-            const newCount = processedEntries.filter(entry => (entry.timestamp || 0) > prevLastSeen).length;
-            showNewItemNotification(newCount);
+            const newCount = processedEntries.filter(e => (e.timestamp || 0) > prevLastSeen).length;
+            showNotification(`${newCount} חדשות חדשות!`, "#FF3D00");
         }
-        
-        // Update ticker items with prioritized new entries
+
         updateTickerItems(processedEntries, prevLastSeen);
-        
-        // Save the new timestamp
         lastSeenTimestamp = Math.max(maxTimestamp, lastSeenTimestamp);
         localStorage.setItem("lastSeenTimestamp", lastSeenTimestamp.toString());
     }
-    
-    // Show notification for new items
-    function showNewItemNotification(count) {
-        const notification = $('<div class="new-entry-notification" style="background-color: #FF3D00;"></div>')
-            .text(`${count} חדשות חדשות!`)
-            .appendTo("body");
-            
-        setTimeout(() => {
-            notification.addClass("show");
-            setTimeout(() => {
-                notification.removeClass("show");
-                setTimeout(() => notification.remove(), 500);
-            }, 3000);
-        }, 100);
-    }
-    
-    // Update ticker items with prioritized new entries
+
     function updateTickerItems(entries, prevTimestamp = lastSeenTimestamp) {
-        // Separate new and regular entries
-        const regularItems = [];
         const newItems = [];
-        
-        console.log("Updating ticker items with entries:", entries.length);
-        
-        // Convert entries to ticker format and separate them
+        const regularItems = [];
+
         entries.forEach(entry => {
             const isNew = (entry.timestamp || 0) > prevTimestamp;
-            const tickerItem = {
+            const item = {
                 title: entry.title,
                 time: entry.date,
                 isNew: isNew,
                 link: entry.link || "",
                 timestamp: entry.timestamp || 0
             };
-            
-            if (isNew) {
-                newItems.push(tickerItem);
-            } else {
-                regularItems.push(tickerItem);
-            }
+            (isNew ? newItems : regularItems).push(item);
         });
-        
-        console.log("New items:", newItems.length, "Regular items:", regularItems.length);
-        
-        // Prioritize new entries by putting them at the beginning
+
         tickerItems = [...newItems, ...regularItems];
-        
-        // If there are new entries, reset the ticker index to start showing them immediately
+        updateCounter();
+
         if (newItems.length > 0) {
             tickerIndex = 0;
-            
-            // If animation is already running, restart it to show the new items
-            if (tickerAnimation) {
-                clearTimeout(tickerAnimation);
+            // Don't interrupt an open expand — the new items will show on next advance
+            if (tickerAnimation && !isExpanded) {
+                cancelTick();
                 animateTicker();
             }
         }
-        
-        // If the ticker isn't running yet, start it
-        if (tickerItems.length > 0 && !tickerAnimation) {
+
+        if (tickerItems.length > 0 && !tickerAnimation && !isExpanded) {
             tickerIndex = 0;
             animateTicker();
         }
     }
-    
-    // Show error message
+
     function showError(message) {
-        // In fullscreen mode, show errors as notifications
-        const errorNotification = $('<div class="new-entry-notification" style="background-color: #F44336;"></div>')
-            .text(message)
-            .appendTo("body");
-            
-        setTimeout(() => {
-            errorNotification.addClass("show");
-            setTimeout(() => {
-                errorNotification.removeClass("show");
-                setTimeout(() => errorNotification.remove(), 500);
-            }, 4000);
-        }, 100);
+        showNotification(message, "#F44336");
     }
 
-    // Handle visibility change to pause/resume ticker when tab is not visible
+    // Pause/resume ticker when tab visibility changes
     document.addEventListener("visibilitychange", function() {
         if (document.hidden) {
-            // Page is hidden, pause the ticker animation
-            if (headerTicker.is(":animated")) {
-                headerTicker.stop();
-            }
-            clearTimeout(tickerAnimation);
+            cancelTick();
         } else {
-            // Page is visible again, restart the ticker
             animateTicker();
         }
     });
 
-    // Auto-refresh feed every 3 minutes (180000 ms) when page is visible
+    // Auto-refresh feed every 3 minutes
     setInterval(function() {
         if (!document.hidden && !isOffline) {
             fetchNewsFeed();
         }
     }, 180000);
-    
-    // Auto-reload headlines in the background every 10 seconds
+
+    // Background check every 10 seconds for new headlines
     setInterval(function() {
         if (!document.hidden && !isOffline) {
-            // Silent background refresh - don't show loading indicators
             $.ajax({
                 url: "/getFeed",
+                data: { hours: hoursBack },
                 type: "GET",
                 dataType: "json",
-                timeout: 5000, // 5 second timeout for background check
+                timeout: 5000,
                 success: function(data) {
                     if (data && data.entries && Array.isArray(data.entries)) {
-                        // Check if we have any new headlines
-                        const latestTimestamp = Math.max(...data.entries.map(entry => entry.timestamp || 0));
-                        if (latestTimestamp > lastSeenTimestamp) {
-                            // Process the new entries to update the ticker
+                        const latest = Math.max(...data.entries.map(e => e.timestamp || 0));
+                        if (latest > lastSeenTimestamp) {
                             processNewEntries(data.entries);
                         }
                     }
                 },
                 error: function() {
-                    // Silently fail on background check errors
                     console.log("Background refresh failed");
                 }
             });
         }
-    }, CONFIG.autoReloadInterval);
-    
-    // Handle page reload
+    }, 10000);
+
     window.addEventListener("beforeunload", function() {
-        // Save last seen timestamp to localStorage
         localStorage.setItem("lastSeenTimestamp", lastSeenTimestamp.toString());
     });
-    
-    // Expose functions for external use (like mini refresh button)
+
+    // Expose for external use
     window.fetchNewsFeed = fetchNewsFeed;
-    
-    // Function to reset the ticker index to show newest headlines first
-    function resetTickerIndex() {
+    window.RotterNews.resetTickerIndex = function () {
         tickerIndex = 0;
-        if (tickerAnimation) {
-            clearTimeout(tickerAnimation);
-            animateTicker();
-        }
-    }
-    
-    // Expose the resetTickerIndex function
-    window.RotterNews.resetTickerIndex = resetTickerIndex;
+        cancelTick();
+        animateTicker();
+    };
 });

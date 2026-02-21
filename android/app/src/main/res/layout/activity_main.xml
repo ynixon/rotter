@@ -66,7 +66,8 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center_vertical|end"
+        android:layoutDirection="rtl"
+        android:gravity="center_vertical|start"
         android:paddingStart="12dp"
         android:paddingEnd="12dp"
         android:paddingTop="2dp"
@@ -75,6 +76,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
+        <!-- Label comes first in RTL start position (right side) -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -82,7 +84,7 @@
             android:textSize="13sp"
             android:textColor="?attr/colorOnSurface"
             android:alpha="0.65"
-            android:layout_marginEnd="6dp" />
+            android:layout_marginStart="6dp" />
 
         <Spinner
             android:id="@+id/spinner_hours"

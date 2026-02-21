@@ -7,6 +7,9 @@ on:
       - 'android/**'
       - '.github/workflows/release-apk.yml'
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -43,9 +46,9 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      - name: Build debug APK
+      - name: Build release APK
         working-directory: android
-        run: gradle assembleDebug --no-daemon -PapkVersionCode=${{ github.run_number }} -PapkVersionName="1.0.${{ github.run_number }}"
+        run: gradle assembleRelease --no-daemon -PapkVersionCode=${{ github.run_number }} -PapkVersionName="1.0.${{ github.run_number }}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -55,9 +58,9 @@ jobs:
           body: |
             Android APK built automatically from commit ${{ github.sha }}.
 
-            **Install:** Download `app-debug.apk` below and sideload it on your Android device.
+            **Install:** Download `rotter-news-1.0.${{ github.run_number }}.apk` below and sideload it on your Android device.
             (Enable "Install from unknown sources" in Android settings first.)
-          files: android/app/build/outputs/apk/debug/*.apk
+          files: android/app/build/outputs/apk/release/*.apk
           draft: false
           prerelease: false
         env:
