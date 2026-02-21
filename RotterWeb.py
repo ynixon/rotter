@@ -36,9 +36,11 @@ def home():
 
 def _extract_article_body(html_text):
     """Extract main article body text from rotter.net HTML."""
-    # Strip script/style blocks
+    # Strip script/style/select/form blocks (select options pollute <td> text)
     clean = re.sub(r'(?si)<script[^>]*>.*?</script>', ' ', html_text)
     clean = re.sub(r'(?si)<style[^>]*>.*?</style>', ' ', clean)
+    clean = re.sub(r'(?si)<select[^>]*>.*?</select>', ' ', clean)
+    clean = re.sub(r'(?si)<nav[^>]*>.*?</nav>', ' ', clean)
 
     # Known named containers (show_item.asp pages)
     markers = [
@@ -70,17 +72,48 @@ def _extract_article_body(html_text):
         if len(text) > 20:
             return text
 
-    # Fallback: scan every <p> and <td> block, pick the longest one that
-    # contains Hebrew text. Rotter .shtml pages use a table-based layout so
-    # the article body is the biggest Hebrew-bearing <td>.
+    # Fallback: scan <p> and <td> blocks. Score by Hebrew character density
+    # divided by link count — this picks prose over navigation menus.
     _HEB = re.compile(r'[\u05d0-\u05ea]')
-    best, best_len = None, 0
+    best, best_score = None, 0
     for tag in ('p', 'td'):
         for m in re.finditer(rf'(?si)<{tag}[^>]*>(.*?)</{tag}>', clean):
-            text = _strip_tags(m.group(1))
-            if len(text) > best_len and _HEB.search(text):
-                best, best_len = text, len(text)
-    return best if best and best_len > 50 else None
+            inner = m.group(1)
+            text = _strip_tags(inner)
+            heb = sum(1 for c in text if '\u05d0' <= c <= '\u05ea')
+            if heb < 30:
+                continue
+            links = len(re.findall(r'<a[\s>]', inner, re.IGNORECASE))
+            score = heb / (links + 1)
+            if score > best_score:
+                best, best_score = text, score
+    return best if best and len(best) > 50 else None
+
+
+def _extract_from_jina(jina_text):
+    """Extract the main Hebrew prose from a Jina Reader markdown response."""
+    # Jump past the metadata header to the actual content
+    mc_idx = jina_text.find('Markdown Content:')
+    if mc_idx >= 0:
+        jina_text = jina_text[mc_idx + len('Markdown Content:'):]
+
+    # Remove images, convert [label](url) → label, strip bare URLs
+    text = re.sub(r'!\[[^\]]*\]\([^\)]*\)', ' ', jina_text)
+    text = re.sub(r'\[([^\]]+)\]\([^\)]*\)', r'\1', text)
+    text = re.sub(r'https?://\S+', ' ', text)
+    # Remove markdown heading/separator lines (===, ---, ###)
+    text = re.sub(r'^[ \t]*[=\-#*]{2,}[ \t]*$', '', text, flags=re.MULTILINE)
+    text = re.sub(r'[ \t]+', ' ', text)
+
+    # Find the block with the most Hebrew characters (= the article body)
+    best, best_heb = '', 0
+    for block in re.split(r'\n{2,}', text):
+        block = block.strip()
+        heb = sum(1 for c in block if '\u05d0' <= c <= '\u05ea')
+        if heb > best_heb and len(block) > 40:
+            best, best_heb = block, heb
+    return best if best_heb > 30 else None
+
 
 
 
@@ -131,8 +164,22 @@ def get_article():
     # real browser (Cloudflare JS redirect). Convert to the real .shtml URL.
     url = _resolve_rotter_url(url)
 
-    # Strategy 1: allorigins CORS proxy — most reliable from Render; rotter
-    # .shtml pages are served without JS challenges through this proxy.
+    # Strategy 1: Jina Reader API — reliably renders the page and returns
+    # markdown. allorigins consistently times out from Render's server.
+    try:
+        resp = _requests.get(
+            'https://r.jina.ai/' + url,
+            headers={'Accept': 'text/plain', 'X-No-Cache': 'true'},
+            timeout=20,
+        )
+        resp.raise_for_status()
+        body = _extract_from_jina(resp.text)
+        if body:
+            return jsonify({'body': body})
+    except Exception:
+        pass
+
+    # Strategy 2: allorigins CORS proxy (fallback when Jina is slow)
     try:
         proxy_url = 'https://api.allorigins.win/raw?url=' + _urlparse.quote(url, safe='')
         resp = _requests.get(proxy_url, timeout=15)
@@ -140,25 +187,6 @@ def get_article():
         body = _extract_article_body(_decode_response(resp.content))
         if body:
             return jsonify({'body': body})
-    except Exception:
-        pass
-
-    # Strategy 2: Jina Reader API — clean markdown extraction, handles JS.
-    # Short timeout because it frequently times out from this server.
-    try:
-        resp = _requests.get(
-            'https://r.jina.ai/' + url,
-            headers={'Accept': 'text/plain', 'X-No-Cache': 'true'},
-            timeout=10,
-        )
-        resp.raise_for_status()
-        text = resp.text.strip()
-        # Jina prepends metadata (Title / URL Source / ...) then "---"
-        parts = re.split(r'\n-{3,}\n', text, maxsplit=1)
-        content = parts[-1].strip() if len(parts) > 1 else text
-        content = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', content)
-        if len(content) > 20:
-            return jsonify({'body': content})
     except Exception:
         pass
 
@@ -191,7 +219,10 @@ def debug_article():
                              headers={'Accept': 'text/plain', 'X-No-Cache': 'true'}, timeout=20)
         out['jina_status'] = resp.status_code
         out['jina_len'] = len(resp.text)
-        out['jina_preview'] = resp.text[:600]
+        out['jina_raw_preview'] = resp.text[:400]
+        extracted = _extract_from_jina(resp.text)
+        out['jina_extracted_len'] = len(extracted) if extracted else 0
+        out['jina_extracted_preview'] = extracted[:500] if extracted else None
     except Exception as e:
         out['jina_error'] = str(e)
 
