@@ -1,3 +1,4 @@
 # Required packages for RotterNews
 Flask
 feedparser
+requests
