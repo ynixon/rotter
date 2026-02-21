@@ -35,16 +35,19 @@ def home():
     return render_template('index.html')
 
 def _extract_article_body(html_text):
-    """Extract main article body text from rotter.net HTML (mirrors ArticleFetcher.java logic)."""
+    """Extract main article body text from rotter.net HTML."""
     # Strip script/style blocks
     clean = re.sub(r'(?si)<script[^>]*>.*?</script>', ' ', html_text)
     clean = re.sub(r'(?si)<style[^>]*>.*?</style>', ' ', clean)
 
+    # Known named containers (show_item.asp pages)
     markers = [
-        'id="scoopBody"', 'id="scoop_body"',
+        'id="scoopBody"', 'id="scoop_body"', 'id="newsContent"',
+        'id="articleBody"', 'id="article_body"', 'id="maintext"',
         'class="scoopBody"', 'class="scoop_body"',
-        'class="newsbody"', 'class="post_body"',
+        'class="newsbody"', 'class="news_body"', 'class="post_body"',
         'class="postbody"', 'class="prow1 valmiddle"', 'class="prow1"',
+        'class="td_content"', 'class="article_content"',
     ]
     for marker in markers:
         idx = clean.find(marker)
@@ -67,13 +70,18 @@ def _extract_article_body(html_text):
         if len(text) > 20:
             return text
 
-    # Fallback: largest <p> block
+    # Fallback: scan every <p> and <td> block, pick the longest one that
+    # contains Hebrew text. Rotter .shtml pages use a table-based layout so
+    # the article body is the biggest Hebrew-bearing <td>.
+    _HEB = re.compile(r'[\u05d0-\u05ea]')
     best, best_len = None, 0
-    for m in re.finditer(r'(?si)<p[^>]*>(.*?)</p>', clean):
-        text = _strip_tags(m.group(1))
-        if len(text) > best_len:
-            best, best_len = text, len(text)
-    return best if best and best_len > 20 else None
+    for tag in ('p', 'td'):
+        for m in re.finditer(rf'(?si)<{tag}[^>]*>(.*?)</{tag}>', clean):
+            text = _strip_tags(m.group(1))
+            if len(text) > best_len and _HEB.search(text):
+                best, best_len = text, len(text)
+    return best if best and best_len > 50 else None
+
 
 
 def _strip_tags(raw):
@@ -123,29 +131,11 @@ def get_article():
     # real browser (Cloudflare JS redirect). Convert to the real .shtml URL.
     url = _resolve_rotter_url(url)
 
-    # Strategy 1: Jina Reader API — extracts clean article text,
-    # handles anti-bot measures, JS rendering, and works with Hebrew.
+    # Strategy 1: allorigins CORS proxy — most reliable from Render; rotter
+    # .shtml pages are served without JS challenges through this proxy.
     try:
-        resp = _requests.get(
-            'https://r.jina.ai/' + url,
-            headers={'Accept': 'text/plain', 'X-No-Cache': 'true'},
-            timeout=20,
-        )
-        resp.raise_for_status()
-        text = resp.text.strip()
-        # Jina prepends metadata (Title / URL Source / ...) then "---"
-        parts = re.split(r'\n-{3,}\n', text, maxsplit=1)
-        content = parts[-1].strip() if len(parts) > 1 else text
-        # Strip markdown link syntax  [label](url) → label
-        content = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', content)
-        if len(content) > 20:
-            return jsonify({'body': content})
-    except Exception:
-        pass
-
-    # Strategy 2: direct fetch with browser headers + Referer
-    try:
-        resp = _requests.get(url, headers=_ARTICLE_HEADERS, timeout=10, allow_redirects=True)
+        proxy_url = 'https://api.allorigins.win/raw?url=' + _urlparse.quote(url, safe='')
+        resp = _requests.get(proxy_url, timeout=15)
         resp.raise_for_status()
         body = _extract_article_body(_decode_response(resp.content))
         if body:
@@ -153,10 +143,28 @@ def get_article():
     except Exception:
         pass
 
-    # Strategy 3: allorigins CORS proxy (last resort)
+    # Strategy 2: Jina Reader API — clean markdown extraction, handles JS.
+    # Short timeout because it frequently times out from this server.
     try:
-        proxy_url = 'https://api.allorigins.win/raw?url=' + _urlparse.quote(url, safe='')
-        resp = _requests.get(proxy_url, timeout=12)
+        resp = _requests.get(
+            'https://r.jina.ai/' + url,
+            headers={'Accept': 'text/plain', 'X-No-Cache': 'true'},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        text = resp.text.strip()
+        # Jina prepends metadata (Title / URL Source / ...) then "---"
+        parts = re.split(r'\n-{3,}\n', text, maxsplit=1)
+        content = parts[-1].strip() if len(parts) > 1 else text
+        content = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', content)
+        if len(content) > 20:
+            return jsonify({'body': content})
+    except Exception:
+        pass
+
+    # Strategy 3: direct fetch (blocked by Cloudflare on most articles)
+    try:
+        resp = _requests.get(url, headers=_ARTICLE_HEADERS, timeout=8, allow_redirects=True)
         resp.raise_for_status()
         body = _extract_article_body(_decode_response(resp.content))
         if body:
@@ -200,12 +208,20 @@ def debug_article():
 
     # allorigins
     try:
-        resp = _requests.get('https://api.allorigins.win/raw?url=' + _urlparse.quote(url, safe=''), timeout=12)
+        resp = _requests.get('https://api.allorigins.win/raw?url=' + _urlparse.quote(url, safe=''), timeout=15)
         out['allorigins_status'] = resp.status_code
         out['allorigins_len'] = len(resp.content)
         raw = _decode_response(resp.content)
         out['allorigins_has_scoopBody'] = 'scoopBody' in raw
-        out['allorigins_preview'] = raw[:400]
+        # Show a slice from the body area (skip HTML headers/CSS)
+        body_start = raw.find('<BODY') if '<BODY' in raw else raw.find('<body')
+        if body_start < 0:
+            body_start = 0
+        out['allorigins_body_preview'] = raw[body_start:body_start + 1500]
+        # Run the extractor and report result
+        extracted = _extract_article_body(raw)
+        out['allorigins_extracted_len'] = len(extracted) if extracted else 0
+        out['allorigins_extracted_preview'] = extracted[:400] if extracted else None
     except Exception as e:
         out['allorigins_error'] = str(e)
 
