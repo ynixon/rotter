@@ -229,10 +229,21 @@ $(document).ready(function () {
         tickerAnimation = null;
     }
 
-    // Fetch article body from the server and display it
+    // Show article body — use the body already supplied in the feed entry,
+    // falling back to a server-side fetch only if none was provided.
     function fetchAndShowBody(item) {
         const url = item.link;
-        if (!url) return;
+
+        // Fast path: body text already embedded in the feed entry
+        if (item.body) {
+            displayBody(item.body);
+            return;
+        }
+
+        if (!url) {
+            tickerBody.text("אין תוכן זמין").removeClass("hidden");
+            return;
+        }
 
         if (url in bodyCache) {
             displayBody(bodyCache[url]);
@@ -250,7 +261,6 @@ $(document).ready(function () {
             success: function (data) {
                 const text = (data && data.body) ? data.body : "";
                 bodyCache[url] = text;
-                // Only update UI if this item is still on screen and still expanded
                 if (isExpanded && tickerItems.length > 0
                         && tickerItems[tickerIndex].link === url) {
                     displayBody(text);
