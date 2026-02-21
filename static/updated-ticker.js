@@ -53,19 +53,22 @@ $(document).ready(function () {
         e.stopPropagation();
         isExpanded = !isExpanded;
         btnExpand.find("i").css("transform", isExpanded ? "rotate(180deg)" : "rotate(0deg)");
-        // Give user a fresh countdown after interacting with the card
-        cancelTick();
-        scheduleNextTick();
 
-        if (isExpanded && tickerItems.length > 0) {
-            const cur = tickerItems[tickerIndex];
-            if (cur.link) {
-                fetchAndShowBody(cur);
-            } else {
-                tickerBody.text("אין קישור למאמר").removeClass("hidden");
+        if (isExpanded) {
+            // Pause auto-advance while the article body is open
+            cancelTick();
+            if (tickerItems.length > 0) {
+                const cur = tickerItems[tickerIndex];
+                if (cur.link) {
+                    fetchAndShowBody(cur);
+                } else {
+                    tickerBody.text("אין קישור למאמר").removeClass("hidden");
+                }
             }
         } else {
+            // User manually closed — hide body and resume auto-advance
             tickerBody.addClass("hidden").text("");
+            scheduleNextTick();
         }
     });
 
@@ -396,13 +399,14 @@ $(document).ready(function () {
 
         if (newItems.length > 0) {
             tickerIndex = 0;
-            if (tickerAnimation) {
+            // Don't interrupt an open expand — the new items will show on next advance
+            if (tickerAnimation && !isExpanded) {
                 cancelTick();
                 animateTicker();
             }
         }
 
-        if (tickerItems.length > 0 && !tickerAnimation) {
+        if (tickerItems.length > 0 && !tickerAnimation && !isExpanded) {
             tickerIndex = 0;
             animateTicker();
         }
