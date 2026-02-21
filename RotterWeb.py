@@ -149,9 +149,12 @@ def get_feed():
                     'timestamp': int(entry_datetime.timestamp()),  # Store as integer for consistency
                 }
                 
-                # Add description if available
+                # Add description + plain-text body if available
                 if hasattr(entry, 'description'):
                     entry_data['description'] = html.unescape(entry.description)
+                    body_text = _strip_tags(entry.description)
+                    if len(body_text) > 20:
+                        entry_data['body'] = body_text
                 
                 # Add media content if found
                 if media_content:
