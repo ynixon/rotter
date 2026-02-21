@@ -49,6 +49,19 @@
     display: none;
 }
 
+/* Link shown when no article text is available */
+#ticker-body .article-link {
+    display: block;
+    text-align: center;
+    color: var(--accent-color, #0F80FF);
+    font-size: 1.1rem;
+    text-decoration: none;
+    padding: 0.4rem 0;
+}
+#ticker-body .article-link:hover {
+    text-decoration: underline;
+}
+
 /* ── New indicator ──────────────────────────────────────────────────────── */
 .new-indicator {
     display: inline-block;
