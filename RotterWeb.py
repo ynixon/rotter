@@ -97,11 +97,31 @@ def _decode_response(content):
     return content.decode('utf-8', errors='replace')
 
 
+def _resolve_rotter_url(url):
+    """Convert show_item.asp?id=XXXXX → XXXXX.shtml (the canonical article URL).
+
+    Rotter RSS links use the show_item.asp redirect which only works inside a
+    real browser (Cloudflare JS challenge). The permanent, fetchable URL is the
+    numeric .shtml page in the same folder.
+    """
+    m = re.search(r'show_item\.asp\?id=(\d+)', url)
+    if m:
+        article_id = m.group(1)
+        base = re.match(r'(https?://[^/]+(?:/[^?]+/)?)show_item\.asp', url)
+        folder = base.group(1) if base else 'https://www.rotter.net/forum/scoops1/'
+        return folder + article_id + '.shtml'
+    return url
+
+
 @app.route('/getArticle')
 def get_article():
     url = request.args.get('url', '').strip()
     if not url or not url.startswith('http'):
         return jsonify({'error': 'Invalid URL'}), 400
+
+    # Rotter RSS links use show_item.asp?id=XXXXX which only resolves inside a
+    # real browser (Cloudflare JS redirect). Convert to the real .shtml URL.
+    url = _resolve_rotter_url(url)
 
     # Strategy 1: Jina Reader API — extracts clean article text,
     # handles anti-bot measures, JS rendering, and works with Hebrew.
@@ -153,7 +173,9 @@ def debug_article():
     url = request.args.get('url', '').strip()
     if not url:
         return jsonify({'error': 'pass ?url=<article_url>'}), 400
-    out = {}
+    resolved = _resolve_rotter_url(url)
+    out = {'original_url': url, 'resolved_url': resolved}
+    url = resolved
 
     # Jina
     try:
