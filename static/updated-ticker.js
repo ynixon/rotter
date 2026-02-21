@@ -229,8 +229,10 @@ $(document).ready(function () {
         tickerAnimation = null;
     }
 
-    // Show article body — use the body already supplied in the feed entry,
-    // falling back to a server-side fetch only if none was provided.
+    // Show article body.
+    // Priority: (1) body text embedded in feed entry, (2) cached fetch result,
+    // (3) show a direct link immediately + try /getArticle in background.
+    // The user always sees something useful — never a spinner or error message.
     function fetchAndShowBody(item) {
         const url = item.link;
 
@@ -240,18 +242,27 @@ $(document).ready(function () {
             return;
         }
 
+        function showLink() {
+            tickerBody
+                .html('<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="article-link">לקריאת הכתבה המלאה ↗</a>')
+                .removeClass("hidden");
+        }
+
         if (!url) {
             tickerBody.text("אין תוכן זמין").removeClass("hidden");
             return;
         }
 
+        // Use cached result if we already tried
         if (url in bodyCache) {
-            displayBody(bodyCache[url]);
+            if (bodyCache[url]) { displayBody(bodyCache[url]); } else { showLink(); }
             return;
         }
 
-        tickerBody.text("טוען תוכן…").removeClass("hidden");
+        // Show the link straight away — never leave the user on a spinner
+        showLink();
 
+        // Background fetch: upgrade to full text if the server can get it
         $.ajax({
             url: "/getArticle",
             data: { url: url },
@@ -261,17 +272,15 @@ $(document).ready(function () {
             success: function (data) {
                 const text = (data && data.body) ? data.body : "";
                 bodyCache[url] = text;
-                if (isExpanded && tickerItems.length > 0
+                if (text && isExpanded && tickerItems.length > 0
                         && tickerItems[tickerIndex].link === url) {
                     displayBody(text);
                 }
+                // If text is empty the link stays — nothing to do
             },
             error: function () {
                 bodyCache[url] = "";
-                if (isExpanded && tickerItems.length > 0
-                        && tickerItems[tickerIndex].link === url) {
-                    tickerBody.text("שגיאה בטעינת התוכן").removeClass("hidden");
-                }
+                // Link is already visible — nothing extra to do on error
             }
         });
     }
