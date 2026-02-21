@@ -41,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvTitle;
     private TextView tvNewBadge;
     private TextView tvCounter;
+    private TextView tvDescription;
     private Button btnLink;
     private Button btnRefresh;
     private ImageButton btnMiniRefresh;
@@ -76,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
         tvTitle       = findViewById(R.id.tv_title);
         tvNewBadge    = findViewById(R.id.tv_new_badge);
         tvCounter     = findViewById(R.id.tv_counter);
+        tvDescription = findViewById(R.id.tv_description);
         btnLink       = findViewById(R.id.btn_link);
         btnRefresh    = findViewById(R.id.btn_refresh);
         btnMiniRefresh= findViewById(R.id.btn_mini_refresh);
@@ -114,10 +116,19 @@ public class MainActivity extends AppCompatActivity {
             isExpanded = !isExpanded;
             btnExpand.animate().rotation(isExpanded ? 180f : 0f).setDuration(200).start();
             if (isExpanded && tickerIndex < entries.size()) {
-                String url = entries.get(tickerIndex).getLink();
+                NewsEntry cur = entries.get(tickerIndex);
+                String desc = cur.getDescription();
+                if (desc != null && !desc.isEmpty()) {
+                    tvDescription.setText(desc);
+                    tvDescription.setVisibility(View.VISIBLE);
+                } else {
+                    tvDescription.setVisibility(View.GONE);
+                }
+                String url = cur.getLink();
                 btnLink.setVisibility(
                     (url != null && !url.isEmpty()) ? View.VISIBLE : View.GONE);
             } else {
+                tvDescription.setVisibility(View.GONE);
                 btnLink.setVisibility(View.GONE);
             }
         });
@@ -276,9 +287,10 @@ public class MainActivity extends AppCompatActivity {
         tvTime.setText(e.getDate());
         tvTitle.setText(e.getTitle());
         tvCounter.setText((tickerIndex + 1) + " / " + entries.size());
-        // Collapse on every new message; user must tap expand to see link
+        // Collapse on every new message; user must tap expand to see description/link
         isExpanded = false;
         btnExpand.setRotation(0f);
+        tvDescription.setVisibility(View.GONE);
         btnLink.setVisibility(View.GONE);
         if (e.isNew()) {
             tvNewBadge.setVisibility(View.VISIBLE);

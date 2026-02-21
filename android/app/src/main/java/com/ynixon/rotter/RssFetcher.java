@@ -57,7 +57,7 @@ public class RssFetcher {
         xpp.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false);
         xpp.setInput(is, null); // honour the feed's own encoding declaration (windows-1255)
 
-        String title = null, pubDate = null, link = null;
+        String title = null, pubDate = null, link = null, description = null;
         boolean inItem = false;
         String currentTag = null;
 
@@ -68,7 +68,7 @@ public class RssFetcher {
                     currentTag = xpp.getName();
                     if ("item".equals(currentTag)) {
                         inItem = true;
-                        title = null; pubDate = null; link = null;
+                        title = null; pubDate = null; link = null; description = null;
                     }
                     break;
 
@@ -76,9 +76,10 @@ public class RssFetcher {
                     if (inItem && currentTag != null) {
                         String text = xpp.getText().trim();
                         switch (currentTag) {
-                            case "title":   title   = text; break;
-                            case "pubDate": pubDate = text; break;
-                            case "link":    link    = text; break;
+                            case "title":       title       = text; break;
+                            case "pubDate":     pubDate     = text; break;
+                            case "link":        link        = text; break;
+                            case "description": description = text; break;
                         }
                     }
                     break;
@@ -86,7 +87,7 @@ public class RssFetcher {
                 case XmlPullParser.END_TAG:
                     if ("item".equals(xpp.getName()) && inItem) {
                         inItem = false;
-                        NewsEntry entry = buildEntry(title, pubDate, link, threeHoursAgo);
+                        NewsEntry entry = buildEntry(title, pubDate, link, description, threeHoursAgo);
                         if (entry != null) result.add(entry);
                     }
                     currentTag = null;
@@ -100,17 +101,20 @@ public class RssFetcher {
     }
 
     private static NewsEntry buildEntry(String title, String pubDate, String link,
-                                        long threeHoursAgo) {
+                                        String description, long threeHoursAgo) {
         if (title == null || pubDate == null) return null;
 
         Date date = tryParseDate(pubDate);
         if (date == null || date.getTime() < threeHoursAgo) return null;
 
         String cleanTitle = Html.fromHtml(title, Html.FROM_HTML_MODE_LEGACY).toString().trim();
+        String cleanDesc  = (description != null)
+            ? Html.fromHtml(description, Html.FROM_HTML_MODE_LEGACY).toString().trim()
+            : null;
         String timeStr    = TIME_FMT.format(date);
         long   timestamp  = date.getTime() / 1000L;
 
-        return new NewsEntry(cleanTitle, timeStr, link, timestamp);
+        return new NewsEntry(cleanTitle, timeStr, link, cleanDesc, timestamp);
     }
 
     private static Date tryParseDate(String raw) {

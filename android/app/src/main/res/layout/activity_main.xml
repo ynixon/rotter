@@ -123,6 +123,20 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/expand_content" />
 
+        <!-- Description text (shown when expanded) -->
+        <TextView
+            android:id="@+id/tv_description"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="16sp"
+            android:lineSpacingMultiplier="1.4"
+            android:textDirection="rtl"
+            android:layoutDirection="rtl"
+            android:gravity="center"
+            android:visibility="gone" />
+
         <!-- Source link button -->
         <Button
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
