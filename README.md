@@ -106,3 +106,41 @@ The Android app is a standalone native application that fetches and displays Rot
 > so repeated installs upgrade in-place without requiring an uninstall.
 
 ---
+
+## Deploying Online (Free Hosting)
+
+The web app is already live at **https://rotter.onrender.com/** — free-tier deployment on [Render](https://render.com).
+
+### Render.com (recommended — already configured)
+
+The repository includes a `render.yaml` and `Dockerfile` that automate the entire setup.
+
+**One-click deploy:**
+1. Fork or push this repo to your GitHub account.
+2. Go to [render.com](https://render.com) → **New → Blueprint** → connect your GitHub repo.
+3. Render detects `render.yaml` automatically and creates the web service.
+4. Click **Apply** — done. Your live URL appears in the Render dashboard within a few minutes.
+
+**Manual deploy (without Blueprint):**
+1. **New → Web Service** → connect your GitHub repo.
+2. Set **Environment** → `Docker` (the `Dockerfile` is at the repo root).
+3. **Instance type** → Free.
+4. Leave the default port — the `Dockerfile` exposes port `10000` and `render.yaml` sets `PORT=10000`.
+5. Click **Create Web Service**.
+
+> **Note:** Render free-tier services spin down after 15 minutes of inactivity and take ~30 s to wake on the next request. Upgrade to the paid Starter plan to keep the service always-on.
+
+---
+
+### Other Free Hosting Options
+
+| Platform | How to deploy |
+|---|---|
+| **[Railway](https://railway.app)** | New project → Deploy from GitHub repo → Railway auto-detects the `Dockerfile`. Free tier includes 500 h/month. |
+| **[Fly.io](https://fly.io)** | `fly launch` in the project root (detects Dockerfile), then `fly deploy`. Free allowance covers a small always-on instance. |
+| **[Koyeb](https://www.koyeb.com)** | New app → GitHub → select repo → Runtime: Docker. Free nano instance available. |
+| **[Hugging Face Spaces](https://huggingface.co/spaces)** | Create a Space with SDK = Docker, push the repo. Free CPU instances. |
+
+All options above use the existing `Dockerfile` without any code changes.
+
+---

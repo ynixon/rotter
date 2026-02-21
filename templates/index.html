@@ -6,69 +6,80 @@
     <meta name="description" content="Rotter News Reader - Clean UI for viewing the latest news">
     <meta name="theme-color" content="#121212">
     <title>Rotter News</title>
-    
+
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%230F80FF' d='M19.875 3H4.125C2.953 3 2 3.897 2 5v14c0 1.103.953 2 2.125 2h15.75C21.047 21 22 20.103 22 19V5c0-1.103-.953-2-2.125-2zm0 16H4.125c-.057 0-.096-.016-.113-.016-.007 0-.011.002-.012.008L4 5.047c.007-.007.007-.012.012-.012.017 0 .07-.035.113-.035h15.75c.057 0 .096.035.113.035l.012.012-.001 13.945-.011.008c-.017 0-.07.016-.113.016z'/%3E%3Cpath fill='%230F80FF' d='M6 7h12v2H6zm0 4h12v2H6zm0 4h6v2H6z'/%3E%3C/svg%3E" sizes="any">
-      <!-- Stylesheets -->
+
+    <!-- Stylesheets -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">      <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='offline.css') }}">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='new-ticker.css') }}">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='theme.css') }}">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='animations.css') }}">
-    
+
     <!-- JavaScript -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/js-cookie@3.0.5/dist/js.cookie.min.js"></script>
 </head>
-<body>    
-    <!-- Theme Toggle Button -->
-    <button id="theme-toggle" aria-label="Toggle Theme">
-        <i class="fas fa-moon"></i>
-    </button>
+<body>
 
-    <!-- Small Refresh Button -->
-    <button id="mini-refresh" aria-label="Refresh Feed">
-        <i class="fas fa-sync-alt"></i>
-    </button>
-    
+    <!-- ── TOP NAVIGATION BAR ──────────────────────────────────────── -->
     <header>
-        <div class="header-content">
+        <nav class="top-bar">
+            <!-- RTL: first child → right side (start) -->
+            <button id="mini-refresh" aria-label="Refresh Feed">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+
             <h1>Rotter News</h1>
-            <!-- Hours-back range selector -->
-            <div id="range-bar">
-                <label for="hours-select">טווח:</label>
-                <select id="hours-select" aria-label="טווח שעות">
-                    <option value="1">שעה אחת</option>
-                    <option value="2">2 שעות</option>
-                    <option value="4" selected>4 שעות</option>
-                    <option value="8">8 שעות</option>
-                    <option value="16">16 שעות</option>
-                </select>
-            </div>
-            <div class="ticker-wrapper" id="ticker-wrapper">
-                <div id="header-ticker">
-                    <!-- Headlines will roll here -->
-                </div>
-                <!-- Message counter -->
-                <div id="ticker-counter"></div>
-                <!-- Expand chevron -->
-                <button id="btn-expand" aria-label="הרחב">
-                    <i class="fas fa-chevron-down"></i>
-                </button>
-                <!-- Article body (shown when expanded) -->
-                <div id="ticker-body" class="hidden"></div>
-                <div id="connection-status" class="hidden">מנותק מהשרת</div>
-            </div>
+
+            <button id="theme-toggle" aria-label="Toggle Theme">
+                <i class="fas fa-moon"></i>
+            </button>
+        </nav>
+
+        <!-- ── RANGE SUB-BAR ── RTL: label on right, select on left -->
+        <div id="range-bar">
+            <label for="hours-select">טווח:</label>
+            <select id="hours-select" aria-label="טווח שעות">
+                <option value="1">שעה אחת</option>
+                <option value="2">2 שעות</option>
+                <option value="4" selected>4 שעות</option>
+                <option value="8">8 שעות</option>
+                <option value="16">16 שעות</option>
+            </select>
         </div>
+    </header>
+
+    <!-- ── MAIN TICKER AREA ─────────────────────────────────────────── -->
+    <main>
+        <div class="ticker-wrapper" id="ticker-wrapper">
+            <div id="header-ticker">
+                <!-- Headlines will appear here -->
+            </div>
+            <!-- Message counter -->
+            <div id="ticker-counter"></div>
+            <!-- Expand chevron -->
+            <button id="btn-expand" aria-label="הרחב">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <!-- Article body (shown when expanded) -->
+            <div id="ticker-body" class="hidden"></div>
+            <div id="connection-status" class="hidden">מנותק מהשרת</div>
+        </div>
+
         <div class="header-actions">
             <button id="refreshFeed" aria-label="Refresh Feed">
                 <i class="fas fa-sync-alt"></i> רענון
             </button>
         </div>
-    </header>    <footer>
+    </main>
+
+    <footer>
         <p>© 2026 Rotter News Reader</p>
         <div class="footer-links">
             <a href="https://www.rotter.net" target="_blank" rel="noopener">Rotter.net</a>
