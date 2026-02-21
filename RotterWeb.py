@@ -4,6 +4,7 @@ import html
 import re
 import os
 import requests as _requests
+import urllib.parse as _urlparse
 from datetime import datetime, timedelta
 
 _ARTICLE_HEADERS = {
@@ -14,6 +15,7 @@ _ARTICLE_HEADERS = {
     ),
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     'Accept-Language': 'he,en;q=0.9',
+    'Referer': 'https://www.rotter.net/',
 }
 
 # Function to format date
@@ -85,16 +87,38 @@ def _strip_tags(raw):
     return s.strip()
 
 
+def _decode_response(content):
+    """Try common Hebrew encodings and return the first that works."""
+    for enc in ('windows-1255', 'utf-8', 'iso-8859-8'):
+        try:
+            return content.decode(enc)
+        except (UnicodeDecodeError, LookupError):
+            pass
+    return content.decode('utf-8', errors='replace')
+
+
 @app.route('/getArticle')
 def get_article():
     url = request.args.get('url', '').strip()
     if not url or not url.startswith('http'):
         return jsonify({'error': 'Invalid URL'}), 400
+
+    # Attempt 1: direct fetch (Render → rotter.net)
     try:
-        resp = _requests.get(url, headers=_ARTICLE_HEADERS, timeout=12, allow_redirects=True)
+        resp = _requests.get(url, headers=_ARTICLE_HEADERS, timeout=10, allow_redirects=True)
         resp.raise_for_status()
-        raw = resp.content.decode('windows-1255', errors='replace')
-        body = _extract_article_body(raw)
+        body = _extract_article_body(_decode_response(resp.content))
+        if body:
+            return jsonify({'body': body})
+    except Exception:
+        pass
+
+    # Attempt 2: via allorigins CORS proxy (different IP, bypasses IP blocks)
+    try:
+        proxy_url = 'https://api.allorigins.win/raw?url=' + _urlparse.quote(url, safe='')
+        resp = _requests.get(proxy_url, headers=_ARTICLE_HEADERS, timeout=12)
+        resp.raise_for_status()
+        body = _extract_article_body(_decode_response(resp.content))
         return jsonify({'body': body or ''})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
